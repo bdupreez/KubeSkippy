@@ -1,0 +1,57 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-ai-nanny
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/yourusername/k8s-ai-nanny
+    targetRevision: HEAD
+    path: helm/ai-nanny
+    helm:
+      valueFiles:
+        - ../../environments/dev/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ai-nanny-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ai-nanny
+  namespace: argocd
+spec:
+  description: AI Nanny Auto-healing Operator
+  sourceRepos:
+  - 'https://github.com/yourusername/k8s-ai-nanny'
+  destinations:
+  - namespace: 'ai-nanny-system'
+    server: 'https://kubernetes.default.svc'
+  - namespace: 'kube-system'
+    server: 'https://kubernetes.default.svc'
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - name: admin
+    policies:
+    - p, proj:ai-nanny:admin, applications, *, ai-nanny/*, allow
+    groups:
+    - argocd-admins

@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-nanny-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ai-nanny-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0"
+        volumeMounts:
+        - name: ollama-data
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+      volumes:
+      - name: ollama-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-service
+  namespace: ai-nanny-system
+spec:
+  selector:
+    app: ollama
+  ports:
+  - protocol: TCP
+    port: 11434
+    targetPort: 11434
+  type: ClusterIP
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-pull-model
+  namespace: ai-nanny-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: pull-model
+        image: curlimages/curl:latest
+        command: 
+        - sh
+        - -c
+        - |
+          # Wait for Ollama to be ready
+          until curl -f http://ollama-service:11434/api/tags; do
+            echo "Waiting for Ollama..."
+            sleep 5
+          done
+          # Pull the model
+          curl -X POST http://ollama-service:11434/api/pull -d '{
+            "name": "llama2:7b"
+          }'
+      restartPolicy: OnFailure
+  backoffLimit: 3

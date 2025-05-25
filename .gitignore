@@ -1,0 +1,55 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+testbin/*
+Dockerfile.cross
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+cover.out
+
+# Go workspace file
+go.work
+
+# Kubernetes
+*.yaml-e
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Build artifacts
+/bin
+/build
+/dist
+
+# Local environment
+.env
+.env.local
+
+# Kubebuilder
+/config/crd/bases/*.yaml
+/config/rbac/role.yaml
+/config/webhook/manifests.yaml
