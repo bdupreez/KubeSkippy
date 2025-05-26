@@ -1,0 +1,61 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: example-healing-policy
+  namespace: default
+spec:
+  # Mode can be: monitor, dryrun, automatic, manual
+  mode: monitor
+  
+  # Selector defines which resources this policy applies to
+  selector:
+    namespaces:
+    - default
+    resources:
+    - apiVersion: v1
+      kind: Pod
+    labelSelector:
+      matchLabels:
+        healing: enabled
+  
+  # Triggers define when to initiate healing
+  triggers:
+  - name: high-restart-count
+    type: metric
+    metricTrigger:
+      query: 'kube_pod_container_status_restarts_total > 5'
+      threshold: 5
+      operator: ">"
+      duration: 2m
+    cooldownPeriod: 5m
+  
+  - name: crashloop-backoff
+    type: event  
+    eventTrigger:
+      reason: "BackOff"
+      type: "Warning"
+      count: 3
+      window: 5m
+    cooldownPeriod: 10m
+  
+  # Actions define what to do when triggers fire
+  actions:
+  - name: restart-pod
+    type: restart
+    description: "Restart the pod to recover from crash loop"
+    restartAction:
+      strategy: rolling
+      maxConcurrent: 1
+    priority: 100
+    requiresApproval: false
+  
+  # Safety rules
+  safetyRules:
+    maxActionsPerHour: 10
+    requireHealthCheck: true
+    healthCheckTimeout: 5m
+    protectedResources:
+    - apiVersion: v1
+      kind: Pod
+      excludeNames:
+      - "system-critical-*"
