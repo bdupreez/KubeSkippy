@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -33,8 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/kubernetes"
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	kubeskippyv1alpha1 "github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubemetrics "github.com/kubeskippy/kubeskippy/internal/metrics"
+	"github.com/kubeskippy/kubeskippy/internal/safety"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 	//+kubebuilder:scaffold:imports
 )
@@ -119,14 +124,37 @@ func main() {
 	// Initialize components
 	setupLog.Info("Initializing components")
 
-	// TODO: Create actual implementations
-	// For now, using nil to allow compilation
-	var metricsCollector controller.MetricsCollector
-	var safetyController controller.SafetyController
+	// Create safety controller with in-memory store
+	safetyStore := safety.NewInMemoryActionStore()
+	safetyController := safety.NewController(mgr.GetClient(), cfg.Safety, safetyStore, nil)
+	
+	// Start cleanup loop for old action records
+	ctx := ctrl.SetupSignalHandler()
+	safetyController.StartCleanupLoop(ctx, 24*time.Hour)
+
+	// Create Kubernetes clients for metrics collector
+	kubeConfig := ctrl.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create kubernetes clientset")
+		os.Exit(1)
+	}
+	
+	metricsClientset, err := metricsclient.NewForConfig(kubeConfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create metrics clientset")
+		// Continue without metrics client - metrics server might not be installed
+		setupLog.Info("Metrics server not available, some metrics will be unavailable")
+	}
+
+	// Create metrics collector
+	metricsCollector := kubemetrics.NewCollector(mgr.GetClient(), clientset, metricsClientset)
+	
+	// TODO: Create actual implementations for remaining components
 	var aiAnalyzer controller.AIAnalyzer
 	var remediationEngine controller.RemediationEngine
 	
-	setupLog.Info("WARNING: Using stub implementations - operator will not function properly")
+	setupLog.Info("Safety controller and metrics collector initialized, other components using stubs")
 
 	// Setup controllers
 	if err = (&controller.HealingPolicyReconciler{

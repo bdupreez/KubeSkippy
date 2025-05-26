@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Replace 'yourusername' with your actual GitHub username
-GITHUB_USERNAME="bdupreez@gmail.com"
+GITHUB_USERNAME="bdupreez"
 
 echo "Adding GitHub remote..."
 git remote add origin git@github.com:${GITHUB_USERNAME}/KubeSkippy.git
