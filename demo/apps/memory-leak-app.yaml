@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-leak-app
+  namespace: demo-apps
+  labels:
+    app: memory-leak-app
+    demo: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: memory-leak-app
+  template:
+    metadata:
+      labels:
+        app: memory-leak-app
+        issue: "memory-leak"
+    spec:
+      containers:
+      - name: app
+        image: python:3.9-slim
+        command: 
+        - python3
+        - -c
+        - |
+          import time
+          import random
+          
+          print("Starting memory leak simulation...")
+          data = []
+          iteration = 0
+          
+          while True:
+              # Allocate 10MB every 10 seconds
+              chunk = bytearray(10 * 1024 * 1024)
+              data.append(chunk)
+              iteration += 1
+              
+              print(f"Iteration {iteration}: Allocated {iteration * 10}MB")
+              
+              # Simulate some work
+              time.sleep(10)
+              
+              # Occasionally clear some memory to make it realistic
+              if random.random() < 0.1:
+                  if len(data) > 5:
+                      data.pop(0)
+                      print("Released some memory")
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-leak-app
+  namespace: demo-apps
+spec:
+  selector:
+    app: memory-leak-app
+  ports:
+  - port: 80
+    targetPort: 8080

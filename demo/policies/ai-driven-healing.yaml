@@ -1,0 +1,82 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-driven-healing
+  namespace: demo-apps
+spec:
+  description: "AI-driven analysis and healing for complex issues"
+  enabled: true
+  
+  target:
+    apiVersion: v1
+    kind: Pod
+    labelSelector:
+      matchLabels:
+        demo: "true"
+  
+  triggers:
+  - type: AI
+    ai:
+      model: "llama2:7b"
+      provider: "ollama"
+      analysisInterval: "5m"
+      confidenceThreshold: "0.75"
+      includeMetrics:
+        - "cpu_usage_percent"
+        - "memory_usage_percent"
+        - "restart_count"
+        - "error_rate"
+        - "response_time_p99"
+      includeEvents: true
+      includeLogs: false
+  
+  - type: Composite
+    composite:
+      operator: "OR"
+      conditions:
+        - "error_rate > 10"
+        - "response_time_p99 > 5000"
+        - "availability < 99"
+  
+  actions:
+  - type: ai-recommended
+    priority: 1
+    confidenceThreshold: 0.8
+  
+  - type: restart
+    restartAction:
+      strategy: "rolling"
+    priority: 2
+    when:
+      - condition: "ai_confidence < 0.8"
+  
+  safetyRules:
+    maxActionsPerHour: 2
+    dryRun: true  # Start with dry-run for AI recommendations
+    requireApproval: true
+    requireHumanApprovalFor:
+      - "delete"
+      - "scale-down"
+    protectedNamespaces:
+      - "kube-system"
+      - "kube-public"
+  
+  monitoring:
+    alertOnFailure: true
+    logAIDecisions: true
+    exportMetrics: true
+  
+  aiConfig:
+    systemPrompt: |
+      You are analyzing a Kubernetes application experiencing issues.
+      Consider resource usage, error patterns, and recent events.
+      Provide specific, actionable recommendations with confidence scores.
+      Prioritize stability and gradual remediation over aggressive actions.
+    
+    maxTokens: 2048
+    temperature: 0.7
+    
+    responseValidation:
+      requireConfidenceScore: true
+      requireRiskAssessment: true
+      requireRollbackPlan: true

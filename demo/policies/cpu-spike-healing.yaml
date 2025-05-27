@@ -1,0 +1,65 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: cpu-spike-healing
+  namespace: demo-apps
+spec:
+  description: "Handle CPU spikes and high CPU usage scenarios"
+  enabled: true
+  
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        issue: "cpu-spike"
+  
+  triggers:
+  - type: Threshold
+    threshold:
+      metric: "cpu_usage_percent"
+      operator: ">"
+      value: "80"
+      duration: "2m"
+  
+  - type: Pattern
+    pattern:
+      name: "cpu_spike_pattern"
+      metrics:
+        - "cpu_usage_percent"
+      window: "15m"
+      anomalyThreshold: 2.5  # Standard deviations from mean
+  
+  actions:
+  - type: scale
+    scaleAction:
+      mode: "horizontal"
+      min: 2
+      max: 5
+      targetCPU: 60
+    when:
+      - condition: "cpu_usage_percent > 80"
+  
+  - type: patch
+    patchAction:
+      patch: |
+        spec:
+          template:
+            spec:
+              containers:
+              - name: app
+                resources:
+                  limits:
+                    cpu: "1500m"
+    when:
+      - condition: "cpu_throttling_percent > 20"
+  
+  safetyRules:
+    maxActionsPerHour: 4
+    dryRun: false
+    requireApproval: false
+    preventCascadingActions: true
+  
+  monitoring:
+    alertOnFailure: true
+    metricsRetention: "24h"

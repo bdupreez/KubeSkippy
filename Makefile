@@ -138,3 +138,60 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+##@ Demo
+
+DEMO_CLUSTER ?= kubeskippy-demo
+DEMO_NAMESPACE ?= demo-apps
+
+.PHONY: demo-up
+demo-up: ## Start the demo environment
+	cd demo && ./setup.sh
+
+.PHONY: demo-down
+demo-down: ## Tear down the demo environment
+	cd demo && ./cleanup.sh
+
+.PHONY: demo-deploy-operator
+demo-deploy-operator: manifests docker-build ## Deploy operator to demo cluster
+	kind load docker-image ${IMG} --name $(DEMO_CLUSTER)
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+.PHONY: demo-deploy-apps
+demo-deploy-apps: ## Deploy demo applications
+	kubectl apply -f demo/apps/
+
+.PHONY: demo-apply-policies
+demo-apply-policies: ## Apply healing policies
+	kubectl apply -f demo/policies/
+
+.PHONY: demo-watch
+demo-watch: ## Watch demo healing actions
+	@echo "Watching healing actions in $(DEMO_NAMESPACE)..."
+	@echo "Press Ctrl+C to stop"
+	@kubectl get healingactions -n $(DEMO_NAMESPACE) -w
+
+.PHONY: demo-status
+demo-status: ## Show demo status
+	@echo "=== Deployments ==="
+	@kubectl get deployments -n $(DEMO_NAMESPACE)
+	@echo ""
+	@echo "=== Pods ==="
+	@kubectl get pods -n $(DEMO_NAMESPACE)
+	@echo ""
+	@echo "=== Healing Policies ==="
+	@kubectl get healingpolicies -n $(DEMO_NAMESPACE)
+	@echo ""
+	@echo "=== Healing Actions ==="
+	@kubectl get healingactions -n $(DEMO_NAMESPACE)
+
+.PHONY: demo-logs
+demo-logs: ## Show operator logs
+	kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager -f
+
+.PHONY: demo-reset
+demo-reset: ## Reset demo (delete and recreate apps)
+	kubectl delete -f demo/apps/ --ignore-not-found=true
+	kubectl delete healingactions -n $(DEMO_NAMESPACE) --all
+	sleep 5
+	kubectl apply -f demo/apps/

@@ -1,0 +1,55 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: memory-leak-healing
+  namespace: demo-apps
+spec:
+  description: "Handle applications with memory leaks or high memory usage"
+  enabled: true
+  
+  target:
+    apiVersion: v1
+    kind: Pod
+    labelSelector:
+      matchLabels:
+        issue: "memory-leak"
+  
+  triggers:
+  - type: Threshold
+    threshold:
+      metric: "memory_usage_percent"
+      operator: ">"
+      value: "85"
+      duration: "3m"
+  
+  - type: Trend
+    trend:
+      metric: "memory_usage_bytes"
+      direction: "increasing"
+      window: "10m"
+      minChange: "20"  # 20% increase
+  
+  actions:
+  - type: restart
+    restartAction:
+      strategy: "rolling"
+      gracePeriod: 60
+    when:
+      - condition: "memory_usage_percent > 90"
+  
+  - type: scale
+    scaleAction:
+      replicas: 3
+    when:
+      - condition: "memory_usage_percent > 80 AND replicas < 3"
+  
+  safetyRules:
+    maxActionsPerHour: 3
+    dryRun: false
+    requireApproval: false
+    cooldownPeriod: "10m"
+  
+  monitoring:
+    alertOnFailure: true
+    collectMetricsBeforeAction: true
+    collectMetricsAfterAction: true

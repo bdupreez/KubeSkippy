@@ -1,0 +1,59 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: crashloop-pod-healing
+  namespace: demo-apps
+spec:
+  description: "Automatically handle pods in CrashLoopBackOff state"
+  enabled: true
+  
+  target:
+    apiVersion: v1
+    kind: Pod
+    labelSelector:
+      matchLabels:
+        issue: "crashloop"
+  
+  triggers:
+  - type: Threshold
+    threshold:
+      metric: "restart_count"
+      operator: ">"
+      value: "3"
+      duration: "5m"
+  
+  - type: Condition
+    condition:
+      name: "CrashLoopBackOff"
+      status: "True"
+      duration: "2m"
+  
+  actions:
+  - type: restart
+    restartAction:
+      strategy: "graceful"
+      gracePeriod: 30
+  
+  - type: patch
+    patchAction:
+      patch: |
+        spec:
+          containers:
+          - name: app
+            env:
+            - name: DEBUG
+              value: "true"
+            - name: RESTART_TIMESTAMP
+              value: "{{ .Timestamp }}"
+  
+  safetyRules:
+    maxActionsPerHour: 5
+    dryRun: false
+    requireApproval: false
+    protectedLabels:
+      critical: "true"
+  
+  monitoring:
+    alertOnFailure: true
+    successMetric: "pod_restart_success_total"
+    failureMetric: "pod_restart_failure_total"

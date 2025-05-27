@@ -1,0 +1,67 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: service-degradation-healing
+  namespace: demo-apps
+spec:
+  description: "Handle service degradation and intermittent failures"
+  enabled: true
+  
+  target:
+    apiVersion: v1
+    kind: Service
+    name: flaky-web-app
+  
+  triggers:
+  - type: Threshold
+    threshold:
+      metric: "error_rate_percent"
+      operator: ">"
+      value: "5"
+      duration: "2m"
+  
+  - type: SLO
+    slo:
+      name: "availability"
+      target: 99.5
+      window: "5m"
+      burnRate: 2
+  
+  actions:
+  - type: restart
+    restartAction:
+      strategy: "rolling"
+      maxUnavailable: 1
+    priority: 1
+    when:
+      - condition: "error_rate_percent > 10"
+  
+  - type: scale
+    scaleAction:
+      mode: "temporary"
+      replicas: 5
+      duration: "30m"
+    priority: 2
+    when:
+      - condition: "error_rate_percent > 5 AND error_rate_percent <= 10"
+  
+  - type: traffic-shift
+    trafficShiftAction:
+      strategy: "gradual"
+      canaryPercent: 10
+      incrementPercent: 10
+      intervalMinutes: 5
+    priority: 3
+    when:
+      - condition: "new_version_available = true"
+  
+  safetyRules:
+    maxActionsPerHour: 6
+    dryRun: false
+    requireApproval: false
+    minimumPodsAvailable: 2
+  
+  monitoring:
+    alertOnFailure: true
+    sloReporting: true
+    dashboardURL: "http://grafana.monitoring.svc/d/service-health"

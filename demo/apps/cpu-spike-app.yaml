@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-spike-app
+  namespace: demo-apps
+  labels:
+    app: cpu-spike-app
+    demo: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cpu-spike-app
+  template:
+    metadata:
+      labels:
+        app: cpu-spike-app
+        issue: "cpu-spike"
+    spec:
+      containers:
+      - name: app
+        image: python:3.9-slim
+        command: 
+        - python3
+        - -c
+        - |
+          import time
+          import threading
+          import random
+          import math
+          
+          print("Starting CPU spike simulation...")
+          
+          def cpu_intensive_task():
+              """Perform CPU intensive calculations"""
+              result = 0
+              for i in range(1000000):
+                  result += math.sqrt(i) * math.sin(i)
+              return result
+          
+          def spike_cpu(duration):
+              """Create CPU spike for specified duration"""
+              print(f"Creating CPU spike for {duration} seconds...")
+              end_time = time.time() + duration
+              
+              # Create multiple threads to maximize CPU usage
+              threads = []
+              for _ in range(4):  # 4 threads
+                  t = threading.Thread(target=lambda: [cpu_intensive_task() for _ in range(100)])
+                  t.start()
+                  threads.append(t)
+              
+              # Wait for threads to complete
+              for t in threads:
+                  t.join()
+              
+              print("CPU spike ended")
+          
+          while True:
+              # Normal operation for 30-60 seconds
+              normal_duration = random.randint(30, 60)
+              print(f"Normal operation for {normal_duration} seconds")
+              time.sleep(normal_duration)
+              
+              # CPU spike for 10-30 seconds
+              spike_duration = random.randint(10, 30)
+              spike_cpu(spike_duration)
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "200m"
+          limits:
+            memory: "256Mi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cpu-spike-app
+  namespace: demo-apps
+spec:
+  selector:
+    app: cpu-spike-app
+  ports:
+  - port: 80
+    targetPort: 8080
