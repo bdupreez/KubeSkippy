@@ -39,6 +39,7 @@ import (
 	kubeskippyv1alpha1 "github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/internal/controller"
 	kubemetrics "github.com/kubeskippy/kubeskippy/internal/metrics"
+	"github.com/kubeskippy/kubeskippy/internal/remediation"
 	"github.com/kubeskippy/kubeskippy/internal/safety"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 	//+kubebuilder:scaffold:imports
@@ -150,11 +151,15 @@ func main() {
 	// Create metrics collector
 	metricsCollector := kubemetrics.NewCollector(mgr.GetClient(), clientset, metricsClientset)
 	
-	// TODO: Create actual implementations for remaining components
-	var aiAnalyzer controller.AIAnalyzer
-	var remediationEngine controller.RemediationEngine
+	// Create remediation engine with action recorder
+	actionRecorder := remediation.NewInMemoryActionRecorder(24 * time.Hour)
+	actionRecorder.StartCleanupLoop(ctx, 1*time.Hour)
+	remediationEngine := remediation.NewEngine(mgr.GetClient(), actionRecorder)
 	
-	setupLog.Info("Safety controller and metrics collector initialized, other components using stubs")
+	// TODO: Create actual implementation for AI analyzer
+	var aiAnalyzer controller.AIAnalyzer
+	
+	setupLog.Info("Safety controller, metrics collector, and remediation engine initialized")
 
 	// Setup controllers
 	if err = (&controller.HealingPolicyReconciler{

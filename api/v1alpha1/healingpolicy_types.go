@@ -138,6 +138,9 @@ type HealingActionTemplate struct {
 	// PatchAction for resource patches
 	PatchAction *PatchAction `json:"patchAction,omitempty"`
 
+	// DeleteAction for resource deletion
+	DeleteAction *DeleteAction `json:"deleteAction,omitempty"`
+
 	// Priority of this action (higher executes first)
 	// +kubebuilder:default=50
 	Priority int32 `json:"priority,omitempty"`
@@ -149,29 +152,35 @@ type HealingActionTemplate struct {
 // RestartAction defines pod restart parameters
 type RestartAction struct {
 	// Strategy for restart
-	// +kubebuilder:validation:Enum=recreate;rolling
+	// +kubebuilder:validation:Enum=recreate;rolling;graceful
 	// +kubebuilder:default=rolling
 	Strategy string `json:"strategy,omitempty"`
 
 	// MaxConcurrent pods to restart at once
 	// +kubebuilder:default=1
 	MaxConcurrent int32 `json:"maxConcurrent,omitempty"`
+
+	// GracePeriodSeconds for graceful shutdown
+	// +kubebuilder:default=30
+	GracePeriodSeconds int32 `json:"gracePeriodSeconds,omitempty"`
 }
 
 // ScaleAction defines scaling parameters
 type ScaleAction struct {
-	// ScaleUp or ScaleDown
-	// +kubebuilder:validation:Enum=up;down
+	// Direction of scaling
+	// +kubebuilder:validation:Enum=up;down;absolute
 	Direction string `json:"direction"`
 
-	// Amount to scale by (percentage or absolute)
-	Amount string `json:"amount"`
+	// Replicas to scale by or to
+	Replicas int32 `json:"replicas"`
 
-	// Min replicas
-	Min int32 `json:"min,omitempty"`
+	// MinReplicas constraint
+	// +kubebuilder:default=0
+	MinReplicas int32 `json:"minReplicas,omitempty"`
 
-	// Max replicas
-	Max int32 `json:"max,omitempty"`
+	// MaxReplicas constraint
+	// +kubebuilder:default=100
+	MaxReplicas int32 `json:"maxReplicas,omitempty"`
 }
 
 // PatchAction defines resource patching
@@ -182,6 +191,32 @@ type PatchAction struct {
 
 	// Patch content
 	Patch string `json:"patch"`
+
+	// Patches for structured patching
+	Patches []PatchOperation `json:"patches,omitempty"`
+}
+
+// PatchOperation defines a single patch operation
+type PatchOperation struct {
+	// Path to the field to patch
+	Path []string `json:"path"`
+
+	// Value to set
+	Value string `json:"value"`
+}
+
+// DeleteAction defines resource deletion parameters
+type DeleteAction struct {
+	// GracePeriodSeconds before force deletion
+	// +kubebuilder:default=30
+	GracePeriodSeconds int32 `json:"gracePeriodSeconds,omitempty"`
+
+	// Force deletion even with finalizers
+	Force bool `json:"force,omitempty"`
+
+	// PropagationPolicy for deletion
+	// +kubebuilder:validation:Enum=Orphan;Background;Foreground
+	PropagationPolicy string `json:"propagationPolicy,omitempty"`
 }
 
 // SafetyRules define constraints on healing actions

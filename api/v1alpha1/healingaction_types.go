@@ -126,6 +126,13 @@ type ActionResult struct {
 
 // ResourceChange describes a modification made
 type ResourceChange struct {
+	// ResourceRef identifies the resource (Kind/Namespace/Name)
+	ResourceRef string `json:"resourceRef"`
+
+	// ChangeType describes the type of change
+	// +kubebuilder:validation:Enum=create;update;delete;patch;scale
+	ChangeType string `json:"changeType"`
+
 	// Field that was changed
 	Field string `json:"field"`
 
@@ -136,7 +143,7 @@ type ResourceChange struct {
 	NewValue string `json:"newValue,omitempty"`
 
 	// Timestamp of the change
-	Timestamp metav1.Time `json:"timestamp"`
+	Timestamp *metav1.Time `json:"timestamp,omitempty"`
 }
 
 // ApprovalStatus tracks manual approval state
