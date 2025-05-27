@@ -22,10 +22,10 @@ type OpenAIClient struct {
 
 // OpenAIRequest represents a request to the OpenAI API
 type OpenAIRequest struct {
-	Model       string         `json:"model"`
-	Messages    []Message      `json:"messages"`
-	Temperature float32        `json:"temperature,omitempty"`
-	MaxTokens   int            `json:"max_tokens,omitempty"`
+	Model       string    `json:"model"`
+	Messages    []Message `json:"messages"`
+	Temperature float32   `json:"temperature,omitempty"`
+	MaxTokens   int       `json:"max_tokens,omitempty"`
 }
 
 // Message represents a chat message
@@ -149,7 +149,7 @@ func (o *OpenAIClient) Query(ctx context.Context, prompt string, temperature flo
 	if resp.StatusCode != http.StatusOK {
 		var apiError OpenAIError
 		if err := json.Unmarshal(body, &apiError); err == nil && apiError.Error.Message != "" {
-			return "", fmt.Errorf("OpenAI API error: %s (type: %s, code: %s)", 
+			return "", fmt.Errorf("OpenAI API error: %s (type: %s, code: %s)",
 				apiError.Error.Message, apiError.Error.Type, apiError.Error.Code)
 		}
 		return "", fmt.Errorf("OpenAI returned status %d: %s", resp.StatusCode, string(body))
@@ -269,7 +269,7 @@ func (o *OpenAIClient) StreamQuery(ctx context.Context, prompt string, temperatu
 	// Read server-sent events stream
 	reader := resp.Body
 	buffer := make([]byte, 4096)
-	
+
 	for {
 		n, err := reader.Read(buffer)
 		if err != nil {
@@ -281,7 +281,7 @@ func (o *OpenAIClient) StreamQuery(ctx context.Context, prompt string, temperatu
 
 		// Process the chunk
 		chunk := string(buffer[:n])
-		
+
 		// Parse server-sent events
 		lines := bytes.Split([]byte(chunk), []byte("\n"))
 		for _, line := range lines {

@@ -88,8 +88,8 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 	// Check if scaling is needed
 	if newReplicas == currentReplicas {
 		return &controller.ActionResult{
-			Success: true,
-			Message: fmt.Sprintf("No scaling needed, already at %d replicas", currentReplicas),
+			Success:   true,
+			Message:   fmt.Sprintf("No scaling needed, already at %d replicas", currentReplicas),
 			StartTime: startTime,
 			EndTime:   time.Now(),
 			Metrics: map[string]string{
@@ -148,7 +148,7 @@ func (s *ScaleExecutor) Validate(ctx context.Context, target client.Object, acti
 	}
 
 	config := action.ScaleAction
-	
+
 	// Validate direction
 	switch config.Direction {
 	case "up", "down", "absolute":
@@ -271,9 +271,9 @@ func (s *ScaleExecutor) getCurrentReplicas(target client.Object) (int32, error) 
 // scaleResource performs the actual scaling operation
 func (s *ScaleExecutor) scaleResource(ctx context.Context, target client.Object, newReplicas int32) ([]v1alpha1.ResourceChange, error) {
 	log := log.FromContext(ctx)
-	
+
 	currentReplicas, _ := s.getCurrentReplicas(target)
-	
+
 	// Create change record
 	var resourceType string
 	var changes []v1alpha1.ResourceChange
@@ -285,21 +285,21 @@ func (s *ScaleExecutor) scaleResource(ctx context.Context, target client.Object,
 		if err := s.client.Update(ctx, obj); err != nil {
 			return nil, fmt.Errorf("failed to update deployment: %w", err)
 		}
-		
+
 	case *appsv1.ReplicaSet:
 		resourceType = "ReplicaSet"
 		obj.Spec.Replicas = &newReplicas
 		if err := s.client.Update(ctx, obj); err != nil {
 			return nil, fmt.Errorf("failed to update replicaset: %w", err)
 		}
-		
+
 	case *appsv1.StatefulSet:
 		resourceType = "StatefulSet"
 		obj.Spec.Replicas = &newReplicas
 		if err := s.client.Update(ctx, obj); err != nil {
 			return nil, fmt.Errorf("failed to update statefulset: %w", err)
 		}
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported resource type for scaling: %T", target)
 	}

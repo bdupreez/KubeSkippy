@@ -43,20 +43,20 @@ func (c *Collector) WithPrometheus(prometheusAddr string) error {
 	if prometheusAddr == "" {
 		return nil // Prometheus is optional
 	}
-	
+
 	promClient, err := NewPrometheusClient(prometheusAddr, 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed to create prometheus client: %w", err)
 	}
-	
+
 	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if !promClient.IsHealthy(ctx) {
 		return fmt.Errorf("prometheus is not healthy at %s", prometheusAddr)
 	}
-	
+
 	c.prometheus = promClient
 	log.Log.Info("Prometheus integration enabled", "address", prometheusAddr)
 	return nil
@@ -86,7 +86,7 @@ func (c *Collector) CollectMetrics(ctx context.Context, policy *v1alpha1.Healing
 		log.Error(err, "Failed to collect pod metrics")
 	}
 	metrics.Pods = pods
-	
+
 	log.Info("Collected metrics", "policy", policy.Name, "pods", len(pods), "nodes", len(nodes))
 	for _, pod := range pods {
 		log.V(1).Info("Pod metrics", "pod", pod.Name, "restarts", pod.RestartCount, "cpu", pod.CPUUsage, "memory", pod.MemoryUsage, "status", pod.Status)
@@ -113,19 +113,19 @@ func (c *Collector) EvaluateTrigger(ctx context.Context, trigger *v1alpha1.Heali
 			return false, "", fmt.Errorf("metric trigger configuration missing")
 		}
 		return c.evaluateMetricTrigger(ctx, trigger.MetricTrigger, metrics)
-		
+
 	case "event":
 		if trigger.EventTrigger == nil {
 			return false, "", fmt.Errorf("event trigger configuration missing")
 		}
 		return c.evaluateEventTrigger(ctx, trigger.EventTrigger, metrics)
-		
+
 	case "condition":
 		if trigger.ConditionTrigger == nil {
 			return false, "", fmt.Errorf("condition trigger configuration missing")
 		}
 		return c.evaluateConditionTrigger(ctx, trigger.ConditionTrigger, metrics)
-		
+
 	default:
 		return false, "", fmt.Errorf("unknown trigger type: %s", trigger.Type)
 	}
@@ -149,21 +149,21 @@ func (c *Collector) GetResourceMetrics(ctx context.Context, resource *v1alpha1.T
 			return nil, err
 		}
 		metrics.Metrics = podMetrics
-		
+
 	case "Deployment":
 		deployMetrics, err := c.getDeploymentResourceMetrics(ctx, resource.Namespace, resource.Name)
 		if err != nil {
 			return nil, err
 		}
 		metrics.Metrics = deployMetrics
-		
+
 	case "Node":
 		nodeMetrics, err := c.getNodeResourceMetrics(ctx, resource.Name)
 		if err != nil {
 			return nil, err
 		}
 		metrics.Metrics = nodeMetrics
-		
+
 	default:
 		// Generic resource metrics
 		genericMetrics, err := c.getGenericResourceMetrics(ctx, resource)
@@ -355,12 +355,11 @@ func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingP
 	return eventMetrics, nil
 }
 
-
 // evaluateMetricTrigger evaluates a metric-based trigger
 func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1.MetricTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
 	var actualValue float64
 	var err error
-	
+
 	// Try Prometheus first if available and query looks like PromQL
 	if c.prometheus != nil && (strings.Contains(trigger.Query, "(") || strings.Contains(trigger.Query, "{") || strings.Contains(trigger.Query, "[")) {
 		// This looks like a PromQL query
@@ -375,7 +374,7 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 			return triggered, reason, nil
 		}
 	}
-	
+
 	// Fall back to basic metrics evaluation
 	// Parse the query to understand what metric is being requested
 	if strings.Contains(trigger.Query, "node_cpu") {
@@ -437,15 +436,15 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 		for _, event := range metrics.Events {
 			// Look for events in the last 5 minutes
 			if time.Since(event.LastSeen) < 5*time.Minute {
-				if event.Type == "Warning" && (strings.Contains(event.Reason, "Unhealthy") || 
-					strings.Contains(event.Reason, "BackOff") || 
+				if event.Type == "Warning" && (strings.Contains(event.Reason, "Unhealthy") ||
+					strings.Contains(event.Reason, "BackOff") ||
 					strings.Contains(event.Reason, "Failed")) {
 					errorCount++
 				}
 				totalEvents++
 			}
 		}
-		
+
 		// Also check pod restart counts as errors
 		for _, pod := range metrics.Pods {
 			if pod.RestartCount > 0 {
@@ -453,13 +452,13 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 				totalEvents += int(pod.RestartCount) + 1
 			}
 		}
-		
+
 		if totalEvents > 0 {
 			actualValue = float64(errorCount) / float64(totalEvents) * 100.0
 		} else {
 			actualValue = 0
 		}
-		
+
 		// For demo purposes, if we have flaky pods with restarts, assume 20% error rate
 		for _, pod := range metrics.Pods {
 			if strings.Contains(pod.Name, "flaky") && pod.RestartCount > 0 {
@@ -485,19 +484,19 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 		// Calculate availability based on pod readiness and events
 		totalPods := len(metrics.Pods)
 		healthyPods := 0
-		
+
 		for _, pod := range metrics.Pods {
 			if pod.Status == "Running" && pod.RestartCount < 3 {
 				healthyPods++
 			}
 		}
-		
+
 		if totalPods > 0 {
 			actualValue = float64(healthyPods) / float64(totalPods) * 100.0
 		} else {
 			actualValue = 100.0
 		}
-		
+
 		// Reduce availability based on recent error events
 		recentErrors := 0
 		for _, event := range metrics.Events {
@@ -505,7 +504,7 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 				recentErrors++
 			}
 		}
-		
+
 		// Each error reduces availability by 0.5%
 		actualValue = actualValue - (float64(recentErrors) * 0.5)
 		if actualValue < 0 {
@@ -549,7 +548,7 @@ func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.
 		window = trigger.Window.Duration
 	}
 	cutoff := time.Now().Add(-window)
-	
+
 	for _, event := range metrics.Events {
 		if trigger.Type != "" && event.Type != trigger.Type {
 			continue
@@ -557,12 +556,12 @@ func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.
 		if trigger.Reason != "" && event.Reason != trigger.Reason {
 			continue
 		}
-		
+
 		// Check if event is within the time window
 		if event.LastSeen.Before(cutoff) {
 			continue
 		}
-		
+
 		matchCount++
 	}
 
@@ -574,7 +573,7 @@ func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.
 // evaluateConditionTrigger evaluates a condition-based trigger
 func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alpha1.ConditionTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
 	matchCount := 0
-	
+
 	// Check node conditions
 	for _, node := range metrics.Nodes {
 		for _, condition := range node.Conditions {
@@ -584,7 +583,7 @@ func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alp
 			}
 		}
 	}
-	
+
 	// Check pod conditions and status
 	for _, pod := range metrics.Pods {
 		// Check regular pod conditions
@@ -594,7 +593,7 @@ func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alp
 				break
 			}
 		}
-		
+
 		// Special handling for CrashLoopBackOff which is a container state, not a condition
 		if trigger.Type == "CrashLoopBackOff" {
 			// We need to check the actual pod status from the cluster
@@ -604,7 +603,7 @@ func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alp
 			}
 		}
 	}
-	
+
 	triggered := matchCount > 0
 	reason := fmt.Sprintf("found %d resources with condition %s", matchCount, trigger.Type)
 	return triggered, reason, nil
@@ -614,7 +613,7 @@ func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alp
 
 func (c *Collector) getNodeMetricValue(metricName, target string, nodes []controller.NodeMetrics) (float64, bool) {
 	var values []float64
-	
+
 	for _, node := range nodes {
 		var value float64
 		switch metricName {
@@ -673,7 +672,7 @@ func (c *Collector) getNodeMetricValue(metricName, target string, nodes []contro
 
 func (c *Collector) getPodMetricValue(metricName, target string, pods []controller.PodMetrics) (float64, bool) {
 	var values []float64
-	
+
 	for _, pod := range pods {
 		var value float64
 		switch metricName {
@@ -737,9 +736,9 @@ func (c *Collector) getPodResourceMetrics(ctx context.Context, namespace, name s
 	}
 
 	metrics := map[string]interface{}{
-		"phase":         string(pod.Status.Phase),
-		"ready":         isPodReady(pod),
-		"restartCount":  getTotalRestartCount(pod),
+		"phase":          string(pod.Status.Phase),
+		"ready":          isPodReady(pod),
+		"restartCount":   getTotalRestartCount(pod),
 		"containerCount": len(pod.Spec.Containers),
 	}
 
@@ -749,12 +748,12 @@ func (c *Collector) getPodResourceMetrics(ctx context.Context, namespace, name s
 		if err == nil {
 			totalCPU := resource.NewQuantity(0, resource.DecimalSI)
 			totalMemory := resource.NewQuantity(0, resource.BinarySI)
-			
+
 			for _, container := range podMetrics.Containers {
 				totalCPU.Add(*container.Usage.Cpu())
 				totalMemory.Add(*container.Usage.Memory())
 			}
-			
+
 			metrics["cpuUsage"] = totalCPU.AsApproximateFloat64()
 			metrics["memoryUsage"] = totalMemory.AsApproximateFloat64()
 		}
@@ -782,7 +781,7 @@ func (c *Collector) getDeploymentResourceMetrics(ctx context.Context, namespace,
 		podList := &corev1.PodList{}
 		if err := c.client.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabelsSelector{Selector: selector}); err == nil {
 			metrics["podCount"] = len(podList.Items)
-			
+
 			// Calculate aggregate metrics
 			totalRestarts := int32(0)
 			for _, pod := range podList.Items {
@@ -802,7 +801,7 @@ func (c *Collector) getNodeResourceMetrics(ctx context.Context, name string) (ma
 	}
 
 	metrics := map[string]interface{}{
-		"ready":       isNodeReady(node),
+		"ready":         isNodeReady(node),
 		"unschedulable": node.Spec.Unschedulable,
 	}
 

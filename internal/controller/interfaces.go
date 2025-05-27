@@ -87,28 +87,28 @@ type ClusterMetrics struct {
 
 // NodeMetrics represents metrics for a node
 type NodeMetrics struct {
-	Name            string
-	CPUUsage        float64
-	MemoryUsage     float64
-	DiskUsage       float64
-	PodCount        int32
-	Conditions      []string
-	Labels          map[string]string
-	LastUpdateTime  time.Time
+	Name           string
+	CPUUsage       float64
+	MemoryUsage    float64
+	DiskUsage      float64
+	PodCount       int32
+	Conditions     []string
+	Labels         map[string]string
+	LastUpdateTime time.Time
 }
 
 // PodMetrics represents metrics for a pod
 type PodMetrics struct {
-	Name              string
-	Namespace         string
-	CPUUsage          float64
-	MemoryUsage       float64
-	RestartCount      int32
-	Status            string
-	Conditions        []string
-	Labels            map[string]string
-	OwnerReferences   []string
-	LastUpdateTime    time.Time
+	Name            string
+	Namespace       string
+	CPUUsage        float64
+	MemoryUsage     float64
+	RestartCount    int32
+	Status          string
+	Conditions      []string
+	Labels          map[string]string
+	OwnerReferences []string
+	LastUpdateTime  time.Time
 }
 
 // ResourceMetrics represents metrics for a specific resource
@@ -183,11 +183,11 @@ type AIIssue struct {
 
 // AIRecommendation represents an AI-suggested action
 type AIRecommendation struct {
-	ID          string
-	Priority    int
-	Action      string
-	Target      string
-	Reason      string
-	Risk        string
-	Confidence  float64
+	ID         string
+	Priority   int
+	Action     string
+	Target     string
+	Reason     string
+	Risk       string
+	Confidence float64
 }

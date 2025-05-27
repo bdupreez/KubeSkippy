@@ -30,7 +30,7 @@ func TestRestartExecutor(t *testing.T) {
 		expectedError  bool
 	}{
 		{
-			name: "restart pod",
+			name:   "restart pod",
 			target: createUnstructuredPod("test-pod", "default"),
 			action: &v1alpha1.HealingActionTemplate{
 				Type: "restart",
@@ -42,7 +42,7 @@ func TestRestartExecutor(t *testing.T) {
 			expectedError:  false,
 		},
 		{
-			name: "restart deployment",
+			name:   "restart deployment",
 			target: createUnstructuredDeployment("test-deployment", "default"),
 			action: &v1alpha1.HealingActionTemplate{
 				Type: "restart",
@@ -54,7 +54,7 @@ func TestRestartExecutor(t *testing.T) {
 			expectedError:  false,
 		},
 		{
-			name: "unsupported resource",
+			name:   "unsupported resource",
 			target: createUnstructuredService("test-service", "default"),
 			action: &v1alpha1.HealingActionTemplate{
 				Type: "restart",
@@ -119,9 +119,9 @@ func TestScaleExecutor(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		action         *v1alpha1.HealingActionTemplate
-		expectedResult bool
+		name             string
+		action           *v1alpha1.HealingActionTemplate
+		expectedResult   bool
 		expectedReplicas int32
 	}{
 		{
@@ -133,7 +133,7 @@ func TestScaleExecutor(t *testing.T) {
 					Replicas:  2,
 				},
 			},
-			expectedResult: true,
+			expectedResult:   true,
 			expectedReplicas: 5,
 		},
 		{
@@ -146,7 +146,7 @@ func TestScaleExecutor(t *testing.T) {
 					MinReplicas: 1,
 				},
 			},
-			expectedResult: true,
+			expectedResult:   true,
 			expectedReplicas: 2,
 		},
 		{
@@ -158,7 +158,7 @@ func TestScaleExecutor(t *testing.T) {
 					Replicas:  10,
 				},
 			},
-			expectedResult: true,
+			expectedResult:   true,
 			expectedReplicas: 10,
 		},
 		{
@@ -171,7 +171,7 @@ func TestScaleExecutor(t *testing.T) {
 					MaxReplicas: 5,
 				},
 			},
-			expectedResult: true,
+			expectedResult:   true,
 			expectedReplicas: 5,
 		},
 	}
@@ -180,7 +180,7 @@ func TestScaleExecutor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset deployment replicas
 			deploymentCopy := deployment.DeepCopy()
-			
+
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(deploymentCopy).
@@ -196,7 +196,7 @@ func TestScaleExecutor(t *testing.T) {
 			result, err := executor.Execute(context.Background(), deploymentCopy, tt.action)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, result.Success)
-			
+
 			// Verify replicas were updated
 			var updated appsv1.Deployment
 			err = fakeClient.Get(context.Background(), client.ObjectKey{
@@ -284,7 +284,7 @@ func TestPatchExecutor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configMapCopy := configMap.DeepCopy()
-			
+
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(configMapCopy).
@@ -385,7 +385,7 @@ func TestDeleteExecutor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			targetCopy := tt.target.DeepCopyObject().(client.Object)
-			
+
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(targetCopy).

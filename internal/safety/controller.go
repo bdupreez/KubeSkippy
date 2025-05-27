@@ -20,11 +20,11 @@ import (
 
 // Controller implements the SafetyController interface
 type Controller struct {
-	client       client.Client
-	config       config.SafetyConfig
-	store        ActionStore
-	auditLogger  AuditLogger
-	
+	client      client.Client
+	config      config.SafetyConfig
+	store       ActionStore
+	auditLogger AuditLogger
+
 	// Circuit breakers per policy
 	circuitBreakers map[string]*controller.CircuitBreaker
 	cbMutex         sync.RWMutex
@@ -35,7 +35,7 @@ func NewController(client client.Client, config config.SafetyConfig, store Actio
 	if store == nil {
 		store = NewInMemoryActionStore()
 	}
-	
+
 	if auditLogger == nil {
 		auditLogger = &defaultAuditLogger{}
 	}
@@ -52,7 +52,7 @@ func NewController(client client.Client, config config.SafetyConfig, store Actio
 // ValidateAction checks if an action is safe to execute
 func (c *Controller) ValidateAction(ctx context.Context, action *v1alpha1.HealingAction) (*controller.ValidationResult, error) {
 	log := log.FromContext(ctx)
-	
+
 	result := &controller.ValidationResult{
 		Valid:    true,
 		Warnings: []string{},
@@ -113,7 +113,7 @@ func (c *Controller) ValidateAction(ctx context.Context, action *v1alpha1.Healin
 		result.Warnings = append(result.Warnings, "Delete operations are potentially destructive")
 	}
 
-	log.Info("Action validation completed", 
+	log.Info("Action validation completed",
 		"action", action.Name,
 		"valid", result.Valid,
 		"warnings", len(result.Warnings))
@@ -125,7 +125,7 @@ func (c *Controller) ValidateAction(ctx context.Context, action *v1alpha1.Healin
 // CheckRateLimit verifies action frequency limits
 func (c *Controller) CheckRateLimit(ctx context.Context, policy *v1alpha1.HealingPolicy) (bool, error) {
 	policyKey := getPolicyKey(policy)
-	
+
 	// Determine the rate limit
 	limit := c.config.MaxActionsPerHour
 	if policy.Spec.SafetyRules.MaxActionsPerHour > 0 {
@@ -219,7 +219,7 @@ func (c *Controller) IsProtectedResource(resource runtime.Object) (bool, string)
 // RecordAction logs an executed action
 func (c *Controller) RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *controller.ActionResult) {
 	policyKey := fmt.Sprintf("%s/%s", action.Spec.PolicyRef.Namespace, action.Spec.PolicyRef.Name)
-	targetKey := fmt.Sprintf("%s/%s/%s", 
+	targetKey := fmt.Sprintf("%s/%s/%s",
 		action.Spec.TargetResource.Kind,
 		action.Spec.TargetResource.Namespace,
 		action.Spec.TargetResource.Name)
@@ -268,15 +268,15 @@ func (c *Controller) RecordAction(ctx context.Context, action *v1alpha1.HealingA
 func (c *Controller) getTargetResource(ctx context.Context, action *v1alpha1.HealingAction) (runtime.Object, error) {
 	// In a real implementation, this would use dynamic client to fetch any resource type
 	// For now, we'll return a minimal implementation
-	
+
 	// This is a simplified version - in production, you'd use dynamic client
 	obj := &GenericResource{
-		namespace: action.Spec.TargetResource.Namespace,
-		name:      action.Spec.TargetResource.Name,
-		labels:    make(map[string]string),
+		namespace:   action.Spec.TargetResource.Namespace,
+		name:        action.Spec.TargetResource.Name,
+		labels:      make(map[string]string),
 		annotations: make(map[string]string),
 	}
-	
+
 	return obj, nil
 }
 
@@ -291,20 +291,20 @@ func (c *Controller) validateActionType(action *v1alpha1.HealingAction, target r
 		if action.Spec.TargetResource.Kind == "CustomResourceDefinition" {
 			return fmt.Errorf("deleting CRDs is not allowed")
 		}
-		
+
 	case "scale":
 		// Validate scale actions have proper parameters
 		if action.Spec.Action.ScaleAction == nil {
 			return fmt.Errorf("scale action missing configuration")
 		}
-		
+
 	case "patch":
 		// Validate patch actions
 		if action.Spec.Action.PatchAction == nil {
 			return fmt.Errorf("patch action missing configuration")
 		}
 	}
-	
+
 	return nil
 }
 

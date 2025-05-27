@@ -148,7 +148,7 @@ func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, acti
 func (d *DeleteExecutor) Validate(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) error {
 	// Check if resource is deletable
 	gvk := target.GetObjectKind().GroupVersionKind()
-	
+
 	// Prevent deletion of certain critical resources
 	criticalKinds := map[string]bool{
 		"Namespace":                true,
@@ -178,7 +178,7 @@ func (d *DeleteExecutor) Validate(ctx context.Context, target client.Object, act
 	// Validate delete configuration if provided
 	if action.DeleteAction != nil {
 		config := action.DeleteAction
-		
+
 		if config.GracePeriodSeconds < 0 {
 			return fmt.Errorf("gracePeriodSeconds cannot be negative")
 		}
@@ -227,7 +227,7 @@ func (d *DeleteExecutor) DryRun(ctx context.Context, target client.Object, actio
 
 	// Check for dependent resources
 	dependents := d.checkDependentResources(ctx, target)
-	
+
 	// Simulate changes
 	simulatedChanges := []v1alpha1.ResourceChange{
 		{

@@ -33,15 +33,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/client-go/kubernetes"
-	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	kubeskippyv1alpha1 "github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/internal/controller"
 	kubemetrics "github.com/kubeskippy/kubeskippy/internal/metrics"
 	"github.com/kubeskippy/kubeskippy/internal/remediation"
 	"github.com/kubeskippy/kubeskippy/internal/safety"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
+	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/kubernetes"
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -72,7 +72,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&watchNamespace, "namespace", "", "Namespace to watch (empty means all namespaces)")
 	flag.BoolVar(&dryRun, "dry-run", false, "Run in dry-run mode (no actual healing actions)")
-	
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -114,7 +114,7 @@ func main() {
 		LeaderElection:         cfg.EnableLeaderElection,
 		LeaderElectionID:       "kubeskippy.io",
 	}
-	
+
 	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), mgrOpts)
 	if err != nil {
@@ -128,7 +128,7 @@ func main() {
 	// Create safety controller with in-memory store
 	safetyStore := safety.NewInMemoryActionStore()
 	safetyController := safety.NewController(mgr.GetClient(), cfg.Safety, safetyStore, nil)
-	
+
 	// Start cleanup loop for old action records
 	ctx := ctrl.SetupSignalHandler()
 	safetyController.StartCleanupLoop(ctx, 24*time.Hour)
@@ -140,7 +140,7 @@ func main() {
 		setupLog.Error(err, "unable to create kubernetes clientset")
 		os.Exit(1)
 	}
-	
+
 	metricsClientset, err := metricsclient.NewForConfig(kubeConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to create metrics clientset")
@@ -150,7 +150,7 @@ func main() {
 
 	// Create metrics collector
 	metricsCollector := kubemetrics.NewCollector(mgr.GetClient(), clientset, metricsClientset)
-	
+
 	// Configure Prometheus if enabled
 	if cfg.Metrics.PrometheusURL != "" {
 		setupLog.Info("Configuring Prometheus integration", "url", cfg.Metrics.PrometheusURL)
@@ -161,15 +161,15 @@ func main() {
 			setupLog.Info("Prometheus integration enabled successfully")
 		}
 	}
-	
+
 	// Create remediation engine with action recorder
 	actionRecorder := remediation.NewInMemoryActionRecorder(24 * time.Hour)
 	actionRecorder.StartCleanupLoop(ctx, 1*time.Hour)
 	remediationEngine := remediation.NewEngine(mgr.GetClient(), actionRecorder)
-	
+
 	// TODO: Create actual implementation for AI analyzer
 	var aiAnalyzer controller.AIAnalyzer
-	
+
 	setupLog.Info("Safety controller, metrics collector, and remediation engine initialized")
 
 	// Setup controllers

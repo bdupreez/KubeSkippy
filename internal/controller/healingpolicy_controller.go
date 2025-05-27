@@ -97,7 +97,7 @@ func (r *HealingPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	policy.Status.LastEvaluated = metav1.Now()
 	SetCondition(&policy.Status.Conditions, v1alpha1.ConditionTypeReady,
 		metav1.ConditionTrue, ReasonPolicyUpdated, "Policy evaluated successfully")
-	
+
 	if err := r.Status().Update(ctx, policy); err != nil {
 		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
@@ -246,8 +246,8 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 	}
 
 	return &EvaluationResult{
-		ActiveTriggers:  activeTriggers,
-		ActionsCreated:  len(triggeredActions),
+		ActiveTriggers:   activeTriggers,
+		ActionsCreated:   len(triggeredActions),
 		MetricsCollected: true,
 	}, nil
 }
@@ -287,13 +287,13 @@ func (r *HealingPolicyReconciler) findMatchingResources(ctx context.Context, pol
 				if err := r.List(ctx, list, nsListOpts...); err != nil {
 					return nil, fmt.Errorf("failed to list %s: %w", rf.Kind, err)
 				}
-				
+
 				// Extract items and check if they match
 				items, err := meta.ExtractList(list)
 				if err != nil {
 					return nil, fmt.Errorf("failed to extract list: %w", err)
 				}
-				
+
 				for _, item := range items {
 					obj := item.(client.Object)
 					if matches, err := matcher.Matches(obj); err != nil {
@@ -308,13 +308,13 @@ func (r *HealingPolicyReconciler) findMatchingResources(ctx context.Context, pol
 			if err := r.List(ctx, list, listOpts...); err != nil {
 				return nil, fmt.Errorf("failed to list %s: %w", rf.Kind, err)
 			}
-			
+
 			// Extract items and check if they match
 			items, err := meta.ExtractList(list)
 			if err != nil {
 				return nil, fmt.Errorf("failed to extract list: %w", err)
 			}
-			
+
 			for _, item := range items {
 				obj := item.(client.Object)
 				if matches, err := matcher.Matches(obj); err != nil {

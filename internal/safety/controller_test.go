@@ -159,7 +159,7 @@ func TestController_ValidateAction(t *testing.T) {
 			expectedReason: "Resource is protected: namespace kube-system is protected",
 		},
 		{
-			name: "delete PV is blocked",
+			name:   "delete PV is blocked",
 			config: config.SafetyConfig{},
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
@@ -185,7 +185,7 @@ func TestController_ValidateAction(t *testing.T) {
 			expectedReason: "deleting PersistentVolumes is not allowed",
 		},
 		{
-			name: "scale action without config is invalid",
+			name:   "scale action without config is invalid",
 			config: config.SafetyConfig{},
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
@@ -326,7 +326,7 @@ func TestController_CheckRateLimit(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
 			_ = v1alpha1.AddToScheme(scheme)
-			
+
 			client := fake.NewClientBuilder().WithScheme(scheme).Build()
 			store := NewInMemoryActionStore()
 			auditLogger := &MockAuditLogger{}
@@ -352,11 +352,11 @@ func TestController_CheckRateLimit(t *testing.T) {
 
 func TestController_IsProtectedResource(t *testing.T) {
 	tests := []struct {
-		name               string
-		config             config.SafetyConfig
-		resource           *GenericResource
-		expectedProtected  bool
-		expectedReason     string
+		name              string
+		config            config.SafetyConfig
+		resource          *GenericResource
+		expectedProtected bool
+		expectedReason    string
 	}{
 		{
 			name:   "not protected",
@@ -429,7 +429,7 @@ func TestController_IsProtectedResource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
 			client := fake.NewClientBuilder().WithScheme(scheme).Build()
-			
+
 			safetyCtrl := NewController(client, tt.config, nil, nil)
 
 			protected, reason := safetyCtrl.IsProtectedResource(tt.resource)
@@ -444,7 +444,7 @@ func TestController_IsProtectedResource(t *testing.T) {
 func TestController_RecordAction(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(scheme)
-	
+
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	store := NewInMemoryActionStore()
 	auditLogger := &MockAuditLogger{}
@@ -583,7 +583,7 @@ func TestInMemoryActionStore(t *testing.T) {
 func TestCircuitBreakerIntegration(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(scheme)
-	
+
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	store := NewInMemoryActionStore()
 	config := config.SafetyConfig{

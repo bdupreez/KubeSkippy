@@ -30,7 +30,7 @@ func (s *InMemoryActionStore) RecordAction(ctx context.Context, record ActionRec
 	}
 
 	s.records[record.PolicyKey] = append(s.records[record.PolicyKey], record)
-	
+
 	// Keep records sorted by timestamp
 	sort.Slice(s.records[record.PolicyKey], func(i, j int) bool {
 		return s.records[record.PolicyKey][i].Timestamp.After(s.records[record.PolicyKey][j].Timestamp)
@@ -108,7 +108,7 @@ func (s *InMemoryActionStore) CleanupOldRecords(ctx context.Context, before time
 				filtered = append(filtered, record)
 			}
 		}
-		
+
 		if len(filtered) == 0 {
 			delete(s.records, policyKey)
 		} else {

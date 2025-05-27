@@ -23,7 +23,7 @@ func TestInMemoryActionStore_ConcurrentAccess(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(goroutineID int) {
 			defer wg.Done()
-			
+
 			for j := 0; j < recordsPerGoroutine; j++ {
 				record := ActionRecord{
 					PolicyKey:  "default/test-policy",
@@ -33,7 +33,7 @@ func TestInMemoryActionStore_ConcurrentAccess(t *testing.T) {
 					Success:    true,
 					Timestamp:  time.Now(),
 				}
-				
+
 				err := store.RecordAction(ctx, record)
 				assert.NoError(t, err)
 			}
@@ -109,7 +109,7 @@ func TestInMemoryActionStore_Sorting(t *testing.T) {
 
 	// Verify timestamps are in descending order
 	for i := 1; i < len(recent); i++ {
-		assert.True(t, recent[i-1].Timestamp.After(recent[i].Timestamp) || 
+		assert.True(t, recent[i-1].Timestamp.After(recent[i].Timestamp) ||
 			recent[i-1].Timestamp.Equal(recent[i].Timestamp))
 	}
 }
@@ -119,7 +119,7 @@ func TestInMemoryActionStore_CleanupOldRecords(t *testing.T) {
 	ctx := context.Background()
 
 	now := time.Now()
-	
+
 	// Add records with different ages
 	records := []struct {
 		name string

@@ -69,7 +69,7 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 			log.Error(err, "Failed to get original value", "path", patch.Path)
 			originalValue = nil
 		}
-		
+
 		if exists {
 			originalValues[pathToString(patch.Path)] = originalValue
 		}
@@ -127,8 +127,8 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 		StartTime: startTime,
 		EndTime:   time.Now(),
 		Metrics: map[string]string{
-			"patch_count":  fmt.Sprintf("%d", len(config.Patches)),
-			"patch_type":   string(config.Type),
+			"patch_count": fmt.Sprintf("%d", len(config.Patches)),
+			"patch_type":  string(config.Type),
 		},
 	}, nil
 }
@@ -195,11 +195,11 @@ func (p *PatchExecutor) DryRun(ctx context.Context, target client.Object, action
 
 	// Simulate patches
 	simulatedChanges := []v1alpha1.ResourceChange{}
-	
+
 	for _, patch := range config.Patches {
 		// Get current value
 		currentValue, exists, _ := unstructured.NestedFieldCopy(unstructuredTarget.Object, patch.Path...)
-		
+
 		oldValue := "<not set>"
 		if exists {
 			oldValue = fmt.Sprintf("%v", currentValue)
@@ -243,7 +243,7 @@ func (p *PatchExecutor) toUnstructured(obj client.Object) (*unstructured.Unstruc
 	u.SetGroupVersionKind(obj.GetObjectKind().GroupVersionKind())
 	u.SetNamespace(obj.GetNamespace())
 	u.SetName(obj.GetName())
-	
+
 	return u, nil
 }
 

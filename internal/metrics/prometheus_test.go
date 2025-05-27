@@ -18,7 +18,7 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 		case "/api/v1/query":
 			query := r.URL.Query().Get("query")
 			var response string
-			
+
 			// Mock responses for different queries
 			switch query {
 			case "up":
@@ -63,10 +63,10 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 					}
 				}`
 			}
-			
+
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(response))
-			
+
 		case "/api/v1/query_range":
 			response := `{
 				"status": "success",
@@ -84,18 +84,18 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 			}`
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(response))
-			
+
 		case "/api/v1/config":
 			// Health check endpoint
 			response := `{"status": "success"}`
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(response))
-			
+
 		default:
 			http.NotFound(w, r)
 		}
 	})
-	
+
 	return httptest.NewServer(handler)
 }
 
@@ -186,7 +186,7 @@ func TestPrometheusClient_Query(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
 			value, err := client.Query(ctx, tt.query)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -206,7 +206,7 @@ func TestPrometheusClient_QueryRange(t *testing.T) {
 
 	ctx := context.Background()
 	values, err := client.QueryRange(ctx, "test_metric", 5*time.Minute)
-	
+
 	assert.NoError(t, err)
 	assert.Len(t, values, 3)
 	assert.Equal(t, []float64{100.0, 110.0, 120.0}, values)
@@ -270,7 +270,7 @@ func TestCommonQueries(t *testing.T) {
 	assert.Contains(t, CommonQueries, "pod_memory_usage_bytes")
 	assert.Contains(t, CommonQueries, "pod_restart_count")
 	assert.Contains(t, CommonQueries, "http_error_rate")
-	
+
 	// Verify query has placeholder
 	cpuQuery := CommonQueries["pod_cpu_usage_percent"]
 	assert.Contains(t, cpuQuery, "%s")

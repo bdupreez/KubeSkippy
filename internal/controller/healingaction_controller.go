@@ -22,10 +22,10 @@ import (
 // HealingActionReconciler reconciles a HealingAction object
 type HealingActionReconciler struct {
 	client.Client
-	Scheme             *runtime.Scheme
-	Config             *config.Config
-	RemediationEngine  RemediationEngine
-	SafetyController   SafetyController
+	Scheme            *runtime.Scheme
+	Config            *config.Config
+	RemediationEngine RemediationEngine
+	SafetyController  SafetyController
 }
 
 // +kubebuilder:rbac:groups=kubeskippy.io,resources=healingactions,verbs=get;list;watch;create;update;patch;delete
@@ -106,7 +106,7 @@ func (r *HealingActionReconciler) handlePending(ctx context.Context, log logr.Lo
 	// Check if approval is required
 	if action.Spec.ApprovalRequired {
 		log.Info("Action requires approval")
-		
+
 		if action.Status.Approval == nil {
 			action.Status.Approval = &v1alpha1.ApprovalStatus{
 				Required: true,
@@ -119,21 +119,21 @@ func (r *HealingActionReconciler) handlePending(ctx context.Context, log logr.Lo
 			// Still waiting for approval
 			action.SetPhase(v1alpha1.HealingActionPhasePending, "WaitingForApproval",
 				"Action is waiting for manual approval")
-			
+
 			if err := r.Update(ctx, action); err != nil {
 				log.Error(err, "Failed to update action")
 				return ctrl.Result{}, err
 			}
-			
+
 			if err := r.Status().Update(ctx, action); err != nil {
 				log.Error(err, "Failed to update status")
 				return ctrl.Result{}, err
 			}
-			
+
 			// Check again in 30 seconds
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
-		
+
 		// Approved - move to approved phase
 		action.SetPhase(v1alpha1.HealingActionPhaseApproved, "Approved",
 			fmt.Sprintf("Action approved by %s", action.Status.Approval.ApprovedBy))
@@ -241,7 +241,7 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 
 	if err != nil {
 		log.Error(err, "Action execution failed")
-		
+
 		// Check if we should retry
 		if action.Spec.RetryPolicy != nil && action.Status.Attempts < action.Spec.RetryPolicy.MaxAttempts {
 			backoff := CalculateBackoff(
@@ -249,23 +249,23 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 				action.Spec.RetryPolicy.BackoffDelay.Duration,
 				action.Spec.RetryPolicy.BackoffMultiplier,
 			)
-			
+
 			log.Info("Will retry action", "attempt", action.Status.Attempts, "backoff", backoff)
-			
+
 			SetCondition(&action.Status.Conditions, "Retrying", metav1.ConditionTrue,
 				"RetryScheduled", fmt.Sprintf("Will retry after %v", backoff))
-			
+
 			if err := r.Status().Update(ctx, action); err != nil {
 				log.Error(err, "Failed to update status")
 			}
-			
+
 			return ctrl.Result{RequeueAfter: backoff}, nil
 		}
-		
+
 		// Max retries exceeded or no retry policy
 		action.SetPhase(v1alpha1.HealingActionPhaseFailed, ReasonActionFailed,
 			fmt.Sprintf("Action failed after %d attempts: %v", action.Status.Attempts, err))
-		
+
 		if result != nil {
 			action.Status.Result = &v1alpha1.ActionResult{
 				Success: result.Success,
@@ -280,7 +280,7 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 				Error:   err.Error(),
 			}
 		}
-		
+
 		return r.completeAction(ctx, log, action)
 	}
 
@@ -288,7 +288,7 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 	log.Info("Action executed successfully")
 	action.SetPhase(v1alpha1.HealingActionPhaseSucceeded, ReasonActionSucceeded,
 		"Action completed successfully")
-	
+
 	action.Status.Result = &v1alpha1.ActionResult{
 		Success: result.Success,
 		Message: result.Message,
@@ -312,11 +312,11 @@ func (r *HealingActionReconciler) completeAction(ctx context.Context, log logr.L
 	eventType := corev1.EventTypeNormal
 	reason := ReasonActionSucceeded
 	message := fmt.Sprintf("Healing action %s completed successfully", action.Spec.Action.Type)
-	
+
 	if action.Status.Phase == v1alpha1.HealingActionPhaseFailed {
 		eventType = corev1.EventTypeWarning
 		reason = ReasonActionFailed
-		message = fmt.Sprintf("Healing action %s failed: %s", 
+		message = fmt.Sprintf("Healing action %s failed: %s",
 			action.Spec.Action.Type,
 			action.Status.Result.Error)
 	}

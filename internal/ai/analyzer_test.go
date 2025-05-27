@@ -178,10 +178,10 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
+		name           string
 		recommendation *controller.AIRecommendation
-		expectError   bool
-		errorContains string
+		expectError    bool
+		errorContains  string
 	}{
 		{
 			name: "valid recommendation",

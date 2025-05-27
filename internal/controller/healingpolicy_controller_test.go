@@ -21,8 +21,8 @@ import (
 
 // MockMetricsCollector implements MetricsCollector interface for testing
 type MockMetricsCollector struct {
-	CollectMetricsFunc   func(ctx context.Context, policy *v1alpha1.HealingPolicy) (*ClusterMetrics, error)
-	EvaluateTriggerFunc  func(ctx context.Context, trigger *v1alpha1.HealingTrigger, metrics *ClusterMetrics) (bool, string, error)
+	CollectMetricsFunc     func(ctx context.Context, policy *v1alpha1.HealingPolicy) (*ClusterMetrics, error)
+	EvaluateTriggerFunc    func(ctx context.Context, trigger *v1alpha1.HealingTrigger, metrics *ClusterMetrics) (bool, string, error)
 	GetResourceMetricsFunc func(ctx context.Context, resource *v1alpha1.TargetResource) (*ResourceMetrics, error)
 }
 
@@ -245,8 +245,8 @@ func TestHealingPolicyReconciler_Reconcile(t *testing.T) {
 					},
 					Triggers: []v1alpha1.HealingTrigger{
 						{
-							Name: "high-restarts",
-							Type: "metric",
+							Name:           "high-restarts",
+							Type:           "metric",
 							CooldownPeriod: metav1.Duration{Duration: 5 * time.Minute},
 						},
 					},
@@ -273,8 +273,8 @@ func TestHealingPolicyReconciler_Reconcile(t *testing.T) {
 						},
 						Triggers: []v1alpha1.HealingTrigger{
 							{
-								Name: "high-restarts",
-								Type: "metric",
+								Name:           "high-restarts",
+								Type:           "metric",
 								CooldownPeriod: metav1.Duration{Duration: 5 * time.Minute},
 							},
 						},
@@ -305,7 +305,7 @@ func TestHealingPolicyReconciler_Reconcile(t *testing.T) {
 				err := c.List(context.Background(), actionList)
 				require.NoError(t, err)
 				require.Len(t, actionList.Items, 1)
-				
+
 				action := &actionList.Items[0]
 				assert.Equal(t, "restart", action.Spec.Action.Type)
 				assert.Equal(t, "Pod", action.Spec.TargetResource.Kind)

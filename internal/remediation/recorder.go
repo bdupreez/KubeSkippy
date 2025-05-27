@@ -15,9 +15,9 @@ import (
 
 // InMemoryActionRecorder implements ActionRecorder using in-memory storage
 type InMemoryActionRecorder struct {
-	mu       sync.RWMutex
-	history  map[string]*ActionHistory
-	maxAge   time.Duration
+	mu      sync.RWMutex
+	history map[string]*ActionHistory
+	maxAge  time.Duration
 }
 
 // NewInMemoryActionRecorder creates a new in-memory action recorder

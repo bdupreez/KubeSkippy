@@ -79,10 +79,10 @@ func (e *Engine) RegisterExecutor(actionType string, executor controller.ActionE
 // ExecuteAction performs the healing action
 func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingAction) (*controller.ActionResult, error) {
 	log := log.FromContext(ctx)
-	log.Info("Executing healing action", 
+	log.Info("Executing healing action",
 		"action", action.Name,
 		"type", action.Spec.Action.Type,
-		"target", fmt.Sprintf("%s/%s/%s", 
+		"target", fmt.Sprintf("%s/%s/%s",
 			action.Spec.TargetResource.Kind,
 			action.Spec.TargetResource.Namespace,
 			action.Spec.TargetResource.Name))

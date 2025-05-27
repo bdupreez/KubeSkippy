@@ -74,7 +74,7 @@ func TestEngine_ExecuteAction(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
-	
+
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(pod).
@@ -266,7 +266,7 @@ func TestEngine_DryRun(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = appsv1.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
-	
+
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(deployment).
@@ -349,7 +349,7 @@ func TestEngine_Rollback(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	_ = v1alpha1.AddToScheme(scheme)
-	
+
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(configMap).
@@ -396,7 +396,7 @@ func TestEngine_Rollback(t *testing.T) {
 		},
 		StartTime: time.Now(),
 	}
-	
+
 	err := recorder.RecordAction(context.Background(), action, result, originalConfigMap)
 	require.NoError(t, err)
 
@@ -423,7 +423,7 @@ func TestEngine_ConcurrentActions(t *testing.T) {
 	// Create fake client
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	
+
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		Build()
@@ -469,7 +469,7 @@ func TestEngine_GetTargetResource(t *testing.T) {
 	// Create fake client
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	
+
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(pod).
@@ -489,7 +489,7 @@ func TestEngine_GetTargetResource(t *testing.T) {
 	obj, err := engine.getTargetResource(context.Background(), target)
 	require.NoError(t, err)
 	assert.NotNil(t, obj)
-	
+
 	// Verify it's unstructured
 	unstructuredObj, ok := obj.(*unstructured.Unstructured)
 	require.True(t, ok)

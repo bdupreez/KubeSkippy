@@ -150,18 +150,18 @@ func (p *PrometheusClient) extractRangeValues(result model.Value) ([]float64, er
 // CommonQueries provides pre-built PromQL queries for common metrics
 var CommonQueries = map[string]string{
 	// Pod metrics
-	"pod_cpu_usage_percent": `100 * sum(rate(container_cpu_usage_seconds_total{pod="%s",container!=""}[5m])) by (pod)`,
+	"pod_cpu_usage_percent":  `100 * sum(rate(container_cpu_usage_seconds_total{pod="%s",container!=""}[5m])) by (pod)`,
 	"pod_memory_usage_bytes": `sum(container_memory_working_set_bytes{pod="%s",container!=""}) by (pod)`,
-	"pod_restart_count": `sum(kube_pod_container_status_restarts_total{pod="%s"}) by (pod)`,
-	
+	"pod_restart_count":      `sum(kube_pod_container_status_restarts_total{pod="%s"}) by (pod)`,
+
 	// Node metrics
-	"node_cpu_usage_percent": `100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])))`,
+	"node_cpu_usage_percent":    `100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])))`,
 	"node_memory_usage_percent": `100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))`,
-	
+
 	// Application metrics (examples)
-	"http_error_rate": `sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`,
+	"http_error_rate":  `sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`,
 	"http_latency_p99": `histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))`,
-	
+
 	// Container metrics
 	"container_cpu_throttled_percent": `100 * sum(rate(container_cpu_cfs_throttled_periods_total[5m])) / sum(rate(container_cpu_cfs_periods_total[5m]))`,
 }
@@ -170,7 +170,7 @@ var CommonQueries = map[string]string{
 func BuildQuery(metricType string, labels map[string]string) string {
 	// This is a simplified query builder
 	// In production, you'd want more sophisticated query construction
-	
+
 	baseQuery := ""
 	switch metricType {
 	case "pod_cpu":
@@ -182,7 +182,7 @@ func BuildQuery(metricType string, labels map[string]string) string {
 	default:
 		return metricType // Assume it's already a PromQL query
 	}
-	
+
 	// Add label filters
 	if len(labels) > 0 {
 		filters := ""
@@ -193,8 +193,8 @@ func BuildQuery(metricType string, labels map[string]string) string {
 			filters += fmt.Sprintf(`%s="%s"`, k, v)
 		}
 		// Insert filters into the query
-		baseQuery = fmt.Sprintf(baseQuery[:strings.Index(baseQuery, "}")]+","+filters+baseQuery[strings.Index(baseQuery, "}"):])
+		baseQuery = fmt.Sprintf(baseQuery[:strings.Index(baseQuery, "}")] + "," + filters + baseQuery[strings.Index(baseQuery, "}"):])
 	}
-	
+
 	return baseQuery
 }

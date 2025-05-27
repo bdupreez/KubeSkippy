@@ -33,7 +33,7 @@ func TestOllamaClient(t *testing.T) {
 			// Generate endpoint
 			var req OllamaRequest
 			json.NewDecoder(r.Body).Decode(&req)
-			
+
 			response := OllamaResponse{
 				Model:     req.Model,
 				CreatedAt: time.Now(),
@@ -63,7 +63,7 @@ func TestOllamaClient(t *testing.T) {
 			model:      "llama2",
 			httpClient: &http.Client{Timeout: 5 * time.Second},
 		}
-		
+
 		available := client.IsAvailable(context.Background())
 		assert.True(t, available)
 	})
@@ -75,7 +75,7 @@ func TestOllamaClient(t *testing.T) {
 			model:      "llama2",
 			httpClient: &http.Client{Timeout: 5 * time.Second},
 		}
-		
+
 		response, err := client.Query(context.Background(), "Test prompt", 0.7)
 		require.NoError(t, err)
 		assert.Equal(t, "Test response from Ollama", response)
@@ -96,7 +96,7 @@ func TestOpenAIClient(t *testing.T) {
 		case "/v1/chat/completions":
 			var req OpenAIRequest
 			json.NewDecoder(r.Body).Decode(&req)
-			
+
 			// Check if this is a test request
 			if req.MaxTokens == 1 {
 				// Availability check
@@ -120,7 +120,7 @@ func TestOpenAIClient(t *testing.T) {
 				json.NewEncoder(w).Encode(response)
 				return
 			}
-			
+
 			// Normal query
 			response := OpenAIResponse{
 				ID:      "chatcmpl-test",
@@ -157,7 +157,7 @@ func TestOpenAIClient(t *testing.T) {
 			endpoint:   server.URL + "/v1/chat/completions",
 			httpClient: &http.Client{Timeout: 5 * time.Second},
 		}
-		
+
 		assert.Equal(t, "openai/gpt-3.5-turbo", client.GetModel())
 		assert.True(t, client.IsAvailable(context.Background()))
 	})
@@ -170,7 +170,7 @@ func TestOpenAIClient(t *testing.T) {
 			endpoint:   server.URL + "/v1/chat/completions",
 			httpClient: &http.Client{Timeout: 5 * time.Second},
 		}
-		
+
 		response, err := client.Query(context.Background(), "Test prompt", 0.7)
 		require.NoError(t, err)
 		assert.Equal(t, "Test response from OpenAI", response)
@@ -184,7 +184,7 @@ func TestOpenAIClient(t *testing.T) {
 			endpoint:   server.URL + "/v1/chat/completions",
 			httpClient: &http.Client{Timeout: 5 * time.Second},
 		}
-		
+
 		_, err := client.Query(context.Background(), "Test prompt", 0.7)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "401")
@@ -193,7 +193,7 @@ func TestOpenAIClient(t *testing.T) {
 	// Test token estimation
 	t.Run("estimate tokens", func(t *testing.T) {
 		client := &OpenAIClient{}
-		
+
 		// Test with ~40 character string
 		tokens := client.EstimateTokens("This is a test string with about 40 chars")
 		assert.InDelta(t, 10, tokens, 2) // Should be around 10 tokens
@@ -212,14 +212,14 @@ func TestStreamQuery(t *testing.T) {
 				})
 				return
 			}
-			
+
 			// Stream response
 			chunks := []OllamaResponse{
 				{Response: "Hello", Done: false},
 				{Response: " world", Done: false},
 				{Response: "!", Done: true},
 			}
-			
+
 			for _, chunk := range chunks {
 				json.NewEncoder(w).Encode(chunk)
 			}
@@ -237,7 +237,7 @@ func TestStreamQuery(t *testing.T) {
 			result += chunk
 			return nil
 		})
-		
+
 		require.NoError(t, err)
 		assert.Equal(t, "Hello world!", result)
 	})

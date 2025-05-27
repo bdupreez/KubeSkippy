@@ -25,10 +25,10 @@ type Analyzer struct {
 type AIClient interface {
 	// Query sends a prompt to the AI and returns the response
 	Query(ctx context.Context, prompt string, temperature float32) (string, error)
-	
+
 	// GetModel returns the model identifier
 	GetModel() string
-	
+
 	// IsAvailable checks if the AI service is reachable
 	IsAvailable(ctx context.Context) bool
 }
@@ -53,7 +53,7 @@ func NewAnalyzer(config config.AIConfig) (*Analyzer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Ollama client: %w", err)
 		}
-		
+
 	case "openai":
 		if config.APIKey == "" {
 			return nil, fmt.Errorf("OpenAI API key is required")
@@ -62,7 +62,7 @@ func NewAnalyzer(config config.AIConfig) (*Analyzer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OpenAI client: %w", err)
 		}
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported AI provider: %s", config.Provider)
 	}
@@ -131,7 +131,7 @@ func (a *Analyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.
 // ValidateRecommendation validates an AI recommendation for safety
 func (a *Analyzer) ValidateRecommendation(ctx context.Context, recommendation *controller.AIRecommendation) error {
 	log := log.FromContext(ctx)
-	
+
 	// Basic validation
 	if recommendation.Action == "" {
 		return fmt.Errorf("recommendation has no action specified")
@@ -151,7 +151,7 @@ func (a *Analyzer) ValidateRecommendation(ctx context.Context, recommendation *c
 
 	// Validate confidence threshold
 	if recommendation.Confidence < float64(a.config.MinConfidence) {
-		return fmt.Errorf("recommendation confidence %.2f is below threshold %.2f", 
+		return fmt.Errorf("recommendation confidence %.2f is below threshold %.2f",
 			recommendation.Confidence, a.config.MinConfidence)
 	}
 
@@ -231,7 +231,7 @@ func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysi
 // validateAnalysis validates and filters AI analysis results
 func (a *Analyzer) validateAnalysis(ctx context.Context, analysis *controller.AIAnalysis, metrics *controller.ClusterMetrics) *controller.AIAnalysis {
 	log := log.FromContext(ctx)
-	
+
 	// Filter recommendations below confidence threshold
 	validRecs := []controller.AIRecommendation{}
 	for _, rec := range analysis.Recommendations {
@@ -271,17 +271,17 @@ func extractSection(text, startMarker, endMarker string) string {
 		return ""
 	}
 	start += len(startMarker)
-	
+
 	// Skip colon and whitespace after marker
 	if start < len(text) && text[start] == ':' {
 		start++
 	}
-	
+
 	end := strings.Index(text[start:], endMarker)
 	if end == -1 {
 		return strings.TrimSpace(text[start:])
 	}
-	
+
 	return strings.TrimSpace(text[start : start+end])
 }
 
@@ -292,7 +292,7 @@ func extractConfidence(text string) float64 {
 		"confidence level: ",
 		"% confident",
 	}
-	
+
 	text = strings.ToLower(text)
 	for _, pattern := range patterns {
 		if idx := strings.Index(text, pattern); idx != -1 {
@@ -312,21 +312,21 @@ func extractConfidence(text string) float64 {
 			}
 		}
 	}
-	
+
 	return 0.0
 }
 
 func parseIssues(text string) []controller.AIIssue {
 	issues := []controller.AIIssue{}
 	lines := strings.Split(text, "\n")
-	
+
 	var currentIssue *controller.AIIssue
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Look for issue markers
 		if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") || strings.HasPrefix(line, "• ") {
 			if currentIssue != nil {
@@ -347,38 +347,38 @@ func parseIssues(text string) []controller.AIIssue {
 			}
 		}
 	}
-	
+
 	if currentIssue != nil {
 		issues = append(issues, *currentIssue)
 	}
-	
+
 	return issues
 }
 
 func parseRecommendations(text string) []controller.AIRecommendation {
 	recommendations := []controller.AIRecommendation{}
 	lines := strings.Split(text, "\n")
-	
+
 	var currentRec *controller.AIRecommendation
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Look for recommendation markers
 		if strings.HasPrefix(line, "1.") || strings.HasPrefix(line, "2.") || strings.HasPrefix(line, "3.") ||
 			strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
 			if currentRec != nil {
 				recommendations = append(recommendations, *currentRec)
 			}
-			
+
 			// Extract action from line
 			action := line
 			for _, prefix := range []string{"1.", "2.", "3.", "4.", "5.", "- ", "* "} {
 				action = strings.TrimPrefix(action, prefix)
 			}
-			
+
 			currentRec = &controller.AIRecommendation{
 				ID:         fmt.Sprintf("ai-rec-%d", len(recommendations)+1),
 				Priority:   len(recommendations) + 1,
@@ -398,11 +398,11 @@ func parseRecommendations(text string) []controller.AIRecommendation {
 			}
 		}
 	}
-	
+
 	if currentRec != nil {
 		recommendations = append(recommendations, *currentRec)
 	}
-	
+
 	return recommendations
 }
 

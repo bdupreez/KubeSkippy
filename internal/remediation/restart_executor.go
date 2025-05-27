@@ -45,7 +45,7 @@ func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, act
 
 	// Get the GVK to determine resource type
 	gvk := target.GetObjectKind().GroupVersionKind()
-	
+
 	// Execute based on resource type
 	var changes []v1alpha1.ResourceChange
 	var err error
@@ -216,7 +216,7 @@ func (r *RestartExecutor) restartPod(ctx context.Context, pod *corev1.Pod, confi
 
 	// Delete the pod based on strategy
 	deleteOptions := &client.DeleteOptions{}
-	
+
 	if config.Strategy == "graceful" {
 		// Use grace period for graceful termination
 		gracePeriod := int64(30)
@@ -246,11 +246,11 @@ func (r *RestartExecutor) restartDeployment(ctx context.Context, deployment *app
 
 	// Use kubectl's restart annotation approach
 	patch := client.MergeFrom(deployment.DeepCopy())
-	
+
 	if deployment.Spec.Template.Annotations == nil {
 		deployment.Spec.Template.Annotations = make(map[string]string)
 	}
-	
+
 	restartTime := time.Now().Format(time.RFC3339)
 	deployment.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = restartTime
 
@@ -277,7 +277,7 @@ func (r *RestartExecutor) restartDeployment(ctx context.Context, deployment *app
 	// For recreate strategy, scale down then up
 	if config.Strategy == "recreate" {
 		originalReplicas := *deployment.Spec.Replicas
-		
+
 		// Scale down to 0
 		deployment.Spec.Replicas = int32Ptr(0)
 		if err := r.client.Update(ctx, deployment); err != nil {
@@ -312,11 +312,11 @@ func (r *RestartExecutor) restartStatefulSet(ctx context.Context, statefulSet *a
 
 	// Use kubectl's restart annotation approach
 	patch := client.MergeFrom(statefulSet.DeepCopy())
-	
+
 	if statefulSet.Spec.Template.Annotations == nil {
 		statefulSet.Spec.Template.Annotations = make(map[string]string)
 	}
-	
+
 	restartTime := time.Now().Format(time.RFC3339)
 	statefulSet.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = restartTime
 
@@ -347,11 +347,11 @@ func (r *RestartExecutor) restartDaemonSet(ctx context.Context, daemonSet *appsv
 
 	// Use kubectl's restart annotation approach
 	patch := client.MergeFrom(daemonSet.DeepCopy())
-	
+
 	if daemonSet.Spec.Template.Annotations == nil {
 		daemonSet.Spec.Template.Annotations = make(map[string]string)
 	}
-	
+
 	restartTime := time.Now().Format(time.RFC3339)
 	daemonSet.Spec.Template.Annotations["kubectl.kubernetes.io/restartedAt"] = restartTime
 
@@ -394,7 +394,7 @@ func (r *RestartExecutor) restartPodGeneric(ctx context.Context, target client.O
 
 	// Delete the pod based on strategy
 	deleteOptions := &client.DeleteOptions{}
-	
+
 	if config.Strategy == "graceful" {
 		// Use grace period for graceful termination
 		gracePeriod := int64(30)
@@ -423,7 +423,7 @@ func (r *RestartExecutor) restartWorkloadGeneric(ctx context.Context, target cli
 	log := log.FromContext(ctx)
 
 	// Use kubectl's restart annotation approach
-	
+
 	// Add restart annotation to pod template
 	restartTime := time.Now().Format(time.RFC3339)
 	annotationPatch := map[string]interface{}{

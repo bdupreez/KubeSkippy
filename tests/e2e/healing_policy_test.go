@@ -1,7 +1,6 @@
 package e2e_test
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -76,25 +75,28 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingPolicySpec{
-					Description: "Restart pods with high restart count",
-					Enabled:     true,
-					Target: ainannyv1alpha1.TargetResource{
-						APIVersion: "v1",
-						Kind:       "Pod",
+					Mode: "automatic",
+					Selector: ainannyv1alpha1.ResourceSelector{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{"app": "failing-app"},
 						},
+						Resources: []ainannyv1alpha1.ResourceFilter{{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						}},
 					},
 					Triggers: []ainannyv1alpha1.HealingTrigger{{
-						Type: "Threshold",
-						Threshold: &ainannyv1alpha1.ThresholdTrigger{
-							Metric:    "restart_count",
+						Name: "restart-trigger",
+						Type: "metric",
+						MetricTrigger: &ainannyv1alpha1.MetricTrigger{
+							Query:     "restart_count",
 							Operator:  ">",
-							Value:     "3",
-							Duration:  "2m",
+							Threshold: 3,
+							Duration:  metav1.Duration{Duration: 2 * time.Minute},
 						},
 					}},
 					Actions: []ainannyv1alpha1.HealingActionTemplate{{
+						Name: "restart-action",
 						Type: "restart",
 						RestartAction: &ainannyv1alpha1.RestartAction{
 							Strategy: "graceful",
@@ -102,8 +104,6 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					}},
 					SafetyRules: ainannyv1alpha1.SafetyRules{
 						MaxActionsPerHour: 10,
-						DryRun:            false,
-						RequireApproval:   false,
 					},
 				},
 			}
@@ -157,7 +157,7 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 							Containers: []corev1.Container{{
 								Name:  "app",
 								Image: "busybox",
-								Command: []string{"sh", "-c", 
+								Command: []string{"sh", "-c",
 									"while true; do echo 'Working...'; sleep 1; done"},
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
@@ -179,32 +179,33 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingPolicySpec{
-					Description: "Scale deployment based on CPU usage",
-					Enabled:     true,
-					Target: ainannyv1alpha1.TargetResource{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "cpu-app",
+					Mode: "automatic",
+					Selector: ainannyv1alpha1.ResourceSelector{
+						Resources: []ainannyv1alpha1.ResourceFilter{{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+						}},
 					},
 					Triggers: []ainannyv1alpha1.HealingTrigger{{
-						Type: "Threshold",
-						Threshold: &ainannyv1alpha1.ThresholdTrigger{
-							Metric:    "cpu_usage_percent",
+						Name: "cpu-trigger",
+						Type: "metric",
+						MetricTrigger: &ainannyv1alpha1.MetricTrigger{
+							Query:     "cpu_usage_percent",
 							Operator:  ">",
-							Value:     "80",
-							Duration:  "1m",
+							Threshold: 80,
+							Duration:  metav1.Duration{Duration: 1 * time.Minute},
 						},
 					}},
 					Actions: []ainannyv1alpha1.HealingActionTemplate{{
+						Name: "scale-action",
 						Type: "scale",
 						ScaleAction: &ainannyv1alpha1.ScaleAction{
-							Replicas: int32Ptr(3),
+							Direction: "up",
+							Replicas:  3,
 						},
 					}},
 					SafetyRules: ainannyv1alpha1.SafetyRules{
 						MaxActionsPerHour: 5,
-						DryRun:            false,
-						RequireApproval:   false,
 					},
 				},
 			}
@@ -222,7 +223,10 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 				if err != nil {
 					return ""
 				}
-				return p.Status.Phase
+				if len(p.Status.Conditions) > 0 {
+					return string(p.Status.Conditions[0].Type)
+				}
+				return "Unknown"
 			}, timeout, interval).Should(Equal("Active"))
 		})
 	})
@@ -248,7 +252,7 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 							Containers: []corev1.Container{{
 								Name:  "app",
 								Image: "busybox",
-								Command: []string{"sh", "-c", 
+								Command: []string{"sh", "-c",
 									"while true; do echo 'Leaking memory...'; sleep 5; done"},
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
@@ -273,30 +277,33 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingPolicySpec{
-					Description: "AI-driven analysis and healing",
-					Enabled:     true,
-					Target: ainannyv1alpha1.TargetResource{
-						APIVersion: "v1",
-						Kind:       "Pod",
+					Mode: "dryrun",
+					Selector: ainannyv1alpha1.ResourceSelector{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{"app": "memory-leak-app"},
 						},
+						Resources: []ainannyv1alpha1.ResourceFilter{{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						}},
 					},
 					Triggers: []ainannyv1alpha1.HealingTrigger{{
-						Type: "AI",
-						AI: &ainannyv1alpha1.AITrigger{
-							Model:              "llama2:7b",
-							ConfidenceThreshold: "0.7",
-							AnalysisInterval:    "5m",
+						Name: "ai-trigger",
+						Type: "condition",
+						ConditionTrigger: &ainannyv1alpha1.ConditionTrigger{
+							Type:   "AIAnalysisRequired",
+							Status: "True",
 						},
 					}},
 					Actions: []ainannyv1alpha1.HealingActionTemplate{{
-						Type: "ai-recommended",
+						Name: "ai-action",
+						Type: "restart",
+						RestartAction: &ainannyv1alpha1.RestartAction{
+							Strategy: "graceful",
+						},
 					}},
 					SafetyRules: ainannyv1alpha1.SafetyRules{
 						MaxActionsPerHour: 3,
-						DryRun:            true, // Start with dry-run for AI actions
-						RequireApproval:   true,
 					},
 				},
 			}
@@ -312,7 +319,7 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 				if err != nil {
 					return false
 				}
-				return p.Status.LastAnalysisTime != nil
+				return !p.Status.LastEvaluated.IsZero()
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
@@ -330,17 +337,23 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingPolicySpec{
-					Description: "Test dry-run mode",
-					Enabled:     true,
-					Target: ainannyv1alpha1.TargetResource{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       "test-app",
+					Mode: "automatic",
+					Selector: ainannyv1alpha1.ResourceSelector{
+						Resources: []ainannyv1alpha1.ResourceFilter{{
+							APIVersion: "apps/v1",
+							Kind:       "Deployment",
+						}},
 					},
 					Triggers: []ainannyv1alpha1.HealingTrigger{{
-						Type: "Manual",
+						Name: "manual-trigger",
+						Type: "event",
+						EventTrigger: &ainannyv1alpha1.EventTrigger{
+							Type:   "Normal",
+							Reason: "ManualTrigger",
+						},
 					}},
 					Actions: []ainannyv1alpha1.HealingActionTemplate{{
+						Name: "restart-action",
 						Type: "restart",
 						RestartAction: &ainannyv1alpha1.RestartAction{
 							Strategy: "rolling",
@@ -348,8 +361,6 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					}},
 					SafetyRules: ainannyv1alpha1.SafetyRules{
 						MaxActionsPerHour: 10,
-						DryRun:            true,
-						RequireApproval:   false,
 					},
 				},
 			}
@@ -362,8 +373,11 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingActionSpec{
-					PolicyName: policy.Name,
-					Target: ainannyv1alpha1.TargetResource{
+					PolicyRef: ainannyv1alpha1.PolicyReference{
+						Name:      policy.Name,
+						Namespace: policy.Namespace,
+					},
+					TargetResource: ainannyv1alpha1.TargetResource{
 						APIVersion: "apps/v1",
 						Kind:       "Deployment",
 						Name:       "test-app",
@@ -410,25 +424,33 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 					Namespace: testNamespace,
 				},
 				Spec: ainannyv1alpha1.HealingPolicySpec{
-					Description: "Test rate limiting",
-					Enabled:     true,
-					Target: ainannyv1alpha1.TargetResource{
-						APIVersion: "v1",
-						Kind:       "Pod",
+					Mode: "automatic",
+					Selector: ainannyv1alpha1.ResourceSelector{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{"test": "rate-limit"},
 						},
+						Resources: []ainannyv1alpha1.ResourceFilter{{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						}},
 					},
 					Triggers: []ainannyv1alpha1.HealingTrigger{{
-						Type: "Manual",
+						Name: "manual-trigger",
+						Type: "event",
+						EventTrigger: &ainannyv1alpha1.EventTrigger{
+							Type:   "Normal",
+							Reason: "ManualTrigger",
+						},
 					}},
 					Actions: []ainannyv1alpha1.HealingActionTemplate{{
+						Name: "restart-action",
 						Type: "restart",
+						RestartAction: &ainannyv1alpha1.RestartAction{
+							Strategy: "graceful",
+						},
 					}},
 					SafetyRules: ainannyv1alpha1.SafetyRules{
 						MaxActionsPerHour: 2,
-						DryRun:            false,
-						RequireApproval:   false,
 					},
 				},
 			}
@@ -442,8 +464,11 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 						Namespace: testNamespace,
 					},
 					Spec: ainannyv1alpha1.HealingActionSpec{
-						PolicyName: policy.Name,
-						Target: ainannyv1alpha1.TargetResource{
+						PolicyRef: ainannyv1alpha1.PolicyReference{
+							Name:      policy.Name,
+							Namespace: policy.Namespace,
+						},
+						TargetResource: ainannyv1alpha1.TargetResource{
 							APIVersion: "v1",
 							Kind:       "Pod",
 							Name:       fmt.Sprintf("test-pod-%d", i),
@@ -463,10 +488,10 @@ var _ = Describe("HealingPolicy E2E Tests", func() {
 				if err != nil {
 					return 0
 				}
-				
+
 				completedCount := 0
 				for _, action := range actions.Items {
-					if action.Status.Phase == "Completed" && action.Status.Result == "Success" {
+					if action.Status.Phase == "Succeeded" && action.Status.Result != nil && action.Status.Result.Success {
 						completedCount++
 					}
 				}

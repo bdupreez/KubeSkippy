@@ -142,7 +142,7 @@ func TestInMemoryActionRecorder_Cleanup(t *testing.T) {
 
 	// Test cleanup
 	recorder.CleanupOldHistory(context.Background())
-	
+
 	// Verify action was cleaned up
 	count := recorder.GetHistoryCount()
 	assert.Equal(t, 0, count)
@@ -155,7 +155,7 @@ func TestInMemoryActionRecorder_CleanupLoop(t *testing.T) {
 	// Start cleanup loop with short interval
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	recorder.StartCleanupLoop(ctx, 25*time.Millisecond)
 
 	// Record an action

@@ -23,11 +23,11 @@ const (
 	AnnotationHealingDisabled = "kubeskippy.io/healing-disabled"
 
 	// Label keys
-	LabelManagedBy     = "kubeskippy.io/managed-by"
-	LabelPolicyName    = "kubeskippy.io/policy-name"
-	LabelActionName    = "kubeskippy.io/action-name"
-	LabelActionType    = "kubeskippy.io/action-type"
-	LabelActionPhase   = "kubeskippy.io/action-phase"
+	LabelManagedBy   = "kubeskippy.io/managed-by"
+	LabelPolicyName  = "kubeskippy.io/policy-name"
+	LabelActionName  = "kubeskippy.io/action-name"
+	LabelActionType  = "kubeskippy.io/action-type"
+	LabelActionPhase = "kubeskippy.io/action-phase"
 
 	// Finalizer
 	FinalizerName = "kubeskippy.io/finalizer"
@@ -84,7 +84,7 @@ func (pm *PolicyMatcher) Matches(obj client.Object) (bool, error) {
 	// Check resource type
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
-	
+
 	found := false
 	for _, rf := range pm.policy.Spec.Selector.Resources {
 		if rf.APIVersion == apiVersion && rf.Kind == kind {
@@ -153,17 +153,17 @@ func CalculateBackoff(attempt int32, baseDelay time.Duration, multiplier float64
 	if attempt <= 0 {
 		return baseDelay
 	}
-	
+
 	delay := float64(baseDelay)
 	for i := int32(1); i < attempt; i++ {
 		delay *= multiplier
 	}
-	
+
 	maxDelay := 30 * time.Minute
 	if time.Duration(delay) > maxDelay {
 		return maxDelay
 	}
-	
+
 	return time.Duration(delay)
 }
 
@@ -183,10 +183,10 @@ func CreateHealingAction(
 			GenerateName: fmt.Sprintf("%s-%s-", policy.Name, actionTemplate.Name),
 			Namespace:    policy.Namespace,
 			Labels: map[string]string{
-				LabelManagedBy:  "kubeskippy",
-				LabelPolicyName: policy.Name,
-				LabelActionName: actionTemplate.Name,
-				LabelActionType: actionTemplate.Type,
+				LabelManagedBy:   "kubeskippy",
+				LabelPolicyName:  policy.Name,
+				LabelActionName:  actionTemplate.Name,
+				LabelActionType:  actionTemplate.Type,
 				LabelActionPhase: v1alpha1.HealingActionPhasePending,
 			},
 			Annotations: map[string]string{
@@ -217,8 +217,8 @@ func CreateHealingAction(
 			},
 			Action:           *actionTemplate,
 			ApprovalRequired: actionTemplate.RequiresApproval || policy.Spec.Mode == "manual",
-			DryRun:          dryRun || policy.Spec.Mode == "dryrun",
-			Timeout:         metav1.Duration{Duration: 10 * time.Minute},
+			DryRun:           dryRun || policy.Spec.Mode == "dryrun",
+			Timeout:          metav1.Duration{Duration: 10 * time.Minute},
 			RetryPolicy: &v1alpha1.RetryPolicy{
 				MaxAttempts:       3,
 				BackoffDelay:      metav1.Duration{Duration: 30 * time.Second},

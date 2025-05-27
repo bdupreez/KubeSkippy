@@ -20,9 +20,9 @@ import (
 
 // MockRemediationEngine implements RemediationEngine interface for testing
 type MockRemediationEngine struct {
-	ExecuteActionFunc  func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
-	DryRunFunc         func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
-	RollbackFunc       func(ctx context.Context, action *v1alpha1.HealingAction) error
+	ExecuteActionFunc     func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
+	DryRunFunc            func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
+	RollbackFunc          func(ctx context.Context, action *v1alpha1.HealingAction) error
 	GetActionExecutorFunc func(actionType string) (ActionExecutor, error)
 }
 
@@ -59,13 +59,13 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 	_ = v1alpha1.AddToScheme(scheme)
 
 	tests := []struct {
-		name              string
-		action            *v1alpha1.HealingAction
-		remediationFunc   func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
-		validateFunc      func(ctx context.Context, action *v1alpha1.HealingAction) (*ValidationResult, error)
-		expectedPhase     string
-		expectedResult    reconcile.Result
-		expectedError     bool
+		name            string
+		action          *v1alpha1.HealingAction
+		remediationFunc func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
+		validateFunc    func(ctx context.Context, action *v1alpha1.HealingAction) (*ValidationResult, error)
+		expectedPhase   string
+		expectedResult  reconcile.Result
+		expectedError   bool
 	}{
 		{
 			name: "pending action without approval required",
@@ -163,7 +163,7 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 							Field:     "status.phase",
 							OldValue:  "Running",
 							NewValue:  "Pending",
-							Timestamp: metav1.Now(),
+							Timestamp: &metav1.Time{Time: time.Now()},
 						},
 					},
 				}, nil
@@ -306,7 +306,7 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 				Name:      tt.action.Name,
 				Namespace: tt.action.Namespace,
 			}, updatedAction)
-			
+
 			if err == nil {
 				assert.Equal(t, tt.expectedPhase, updatedAction.Status.Phase)
 			}

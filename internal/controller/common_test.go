@@ -164,7 +164,7 @@ func TestIsProtectedResource(t *testing.T) {
 				},
 			},
 			protectedNamespaces: []string{"kube-system", "kube-public"},
-			expected:           true,
+			expected:            true,
 		},
 		{
 			name: "protected label",
@@ -204,7 +204,7 @@ func TestIsProtectedResource(t *testing.T) {
 				},
 			},
 			protectedNamespaces: []string{"kube-system"},
-			expected:           false,
+			expected:            false,
 		},
 	}
 
@@ -360,13 +360,13 @@ func TestCreateHealingAction(t *testing.T) {
 	assert.Equal(t, "test-policy", action.Labels[LabelPolicyName])
 	assert.Equal(t, "restart", action.Labels[LabelActionType])
 	assert.Equal(t, v1alpha1.HealingActionPhasePending, action.Labels[LabelActionPhase])
-	
+
 	assert.Equal(t, "test-policy", action.Spec.PolicyRef.Name)
 	assert.Equal(t, "default", action.Spec.PolicyRef.Namespace)
 	assert.Equal(t, "v1", action.Spec.TargetResource.APIVersion)
 	assert.Equal(t, "Pod", action.Spec.TargetResource.Kind)
 	assert.Equal(t, "target-pod", action.Spec.TargetResource.Name)
-	
+
 	assert.False(t, action.Spec.ApprovalRequired)
 	assert.False(t, action.Spec.DryRun)
 	assert.NotNil(t, action.Spec.RetryPolicy)
@@ -389,23 +389,23 @@ func TestHealingActionHelpers(t *testing.T) {
 
 	// Test IsComplete
 	assert.False(t, action.IsComplete())
-	
+
 	action.Status.Phase = v1alpha1.HealingActionPhaseSucceeded
 	assert.True(t, action.IsComplete())
-	
+
 	action.Status.Phase = v1alpha1.HealingActionPhaseFailed
 	assert.True(t, action.IsComplete())
-	
+
 	action.Status.Phase = v1alpha1.HealingActionPhaseCancelled
 	assert.True(t, action.IsComplete())
 
 	// Test NeedsApproval
 	action.Status.Phase = v1alpha1.HealingActionPhasePending
 	assert.True(t, action.NeedsApproval())
-	
+
 	action.Status.Approval.Approved = true
 	assert.False(t, action.NeedsApproval())
-	
+
 	action.Spec.ApprovalRequired = false
 	assert.False(t, action.NeedsApproval())
 
@@ -413,7 +413,7 @@ func TestHealingActionHelpers(t *testing.T) {
 	action.SetPhase(v1alpha1.HealingActionPhaseInProgress, "Starting", "Action is starting")
 	assert.Equal(t, v1alpha1.HealingActionPhaseInProgress, action.Status.Phase)
 	assert.NotNil(t, action.Status.StartTime)
-	
+
 	action.SetPhase(v1alpha1.HealingActionPhaseSucceeded, "Completed", "Action completed successfully")
 	assert.Equal(t, v1alpha1.HealingActionPhaseSucceeded, action.Status.Phase)
 	assert.NotNil(t, action.Status.CompletionTime)

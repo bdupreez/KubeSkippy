@@ -27,17 +27,17 @@ type ActionStore interface {
 
 // ActionRecord represents a recorded healing action
 type ActionRecord struct {
-	ID           string
-	PolicyKey    string
-	ActionName   string
-	ActionType   string
-	TargetKey    string
-	Success      bool
-	Error        string
-	Timestamp    time.Time
-	DurationMS   int64
-	ApprovedBy   string
-	DryRun       bool
+	ID         string
+	PolicyKey  string
+	ActionName string
+	ActionType string
+	TargetKey  string
+	Success    bool
+	Error      string
+	Timestamp  time.Time
+	DurationMS int64
+	ApprovedBy string
+	DryRun     bool
 }
 
 // AuditLogger defines the interface for audit logging
