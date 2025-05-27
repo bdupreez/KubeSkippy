@@ -73,10 +73,16 @@ type AIConfig struct {
 	MaxTokens int `json:"maxTokens,omitempty"`
 
 	// Temperature for generation
-	Temperature float64 `json:"temperature,omitempty"`
+	Temperature float32 `json:"temperature,omitempty"`
 
 	// SystemPrompt base prompt
 	SystemPrompt string `json:"systemPrompt,omitempty"`
+
+	// MinConfidence for accepting AI recommendations
+	MinConfidence float32 `json:"minConfidence,omitempty"`
+
+	// ValidateResponses enables response validation
+	ValidateResponses bool `json:"validateResponses,omitempty"`
 }
 
 // SafetyConfig configures safety controls
@@ -219,13 +225,15 @@ func NewDefaultConfig() *Config {
 			RetentionPeriod:      24 * time.Hour,
 		},
 		AI: AIConfig{
-			Provider:     "ollama",
-			Model:        "llama2:13b",
-			Endpoint:     "http://ollama:11434",
-			Timeout:      30 * time.Second,
-			MaxTokens:    2048,
-			Temperature:  0.7,
-			SystemPrompt: DefaultSystemPrompt,
+			Provider:          "ollama",
+			Model:             "llama2:13b",
+			Endpoint:          "http://ollama:11434",
+			Timeout:           30 * time.Second,
+			MaxTokens:         2048,
+			Temperature:       0.7,
+			SystemPrompt:      DefaultSystemPrompt,
+			MinConfidence:     0.7,
+			ValidateResponses: true,
 		},
 		Safety: SafetyConfig{
 			DryRunMode:        false,
