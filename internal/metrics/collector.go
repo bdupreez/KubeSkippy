@@ -26,6 +26,7 @@ type Collector struct {
 	client        client.Client
 	clientset     kubernetes.Interface
 	metricsClient metricsclient.Interface
+	prometheus    *PrometheusClient // Optional Prometheus integration
 }
 
 // NewCollector creates a new metrics collector
@@ -35,6 +36,30 @@ func NewCollector(client client.Client, clientset kubernetes.Interface, metricsC
 		clientset:     clientset,
 		metricsClient: metricsClient,
 	}
+}
+
+// WithPrometheus adds Prometheus support to the collector
+func (c *Collector) WithPrometheus(prometheusAddr string) error {
+	if prometheusAddr == "" {
+		return nil // Prometheus is optional
+	}
+	
+	promClient, err := NewPrometheusClient(prometheusAddr, 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to create prometheus client: %w", err)
+	}
+	
+	// Test connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if !promClient.IsHealthy(ctx) {
+		return fmt.Errorf("prometheus is not healthy at %s", prometheusAddr)
+	}
+	
+	c.prometheus = promClient
+	log.Log.Info("Prometheus integration enabled", "address", prometheusAddr)
+	return nil
 }
 
 // CollectMetrics gathers metrics for the given policy
@@ -333,17 +358,26 @@ func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingP
 
 // evaluateMetricTrigger evaluates a metric-based trigger
 func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1.MetricTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
-	// This is a simplified implementation
-	// In a real implementation, this would:
-	// 1. Execute the PromQL query against a Prometheus server
-	// 2. Compare the result with the threshold using the operator
-	// 3. Check if the condition has been true for the specified duration
-	
-	// For now, we'll use a simple heuristic based on available metrics
 	var actualValue float64
+	var err error
 	
+	// Try Prometheus first if available and query looks like PromQL
+	if c.prometheus != nil && (strings.Contains(trigger.Query, "(") || strings.Contains(trigger.Query, "{") || strings.Contains(trigger.Query, "[")) {
+		// This looks like a PromQL query
+		actualValue, err = c.prometheus.Query(ctx, trigger.Query)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "Prometheus query failed, falling back to basic metrics", "query", trigger.Query)
+			// Fall through to basic metrics
+		} else {
+			// Successfully got value from Prometheus
+			triggered := c.evaluateThreshold(actualValue, trigger.Threshold, trigger.Operator)
+			reason := fmt.Sprintf("Prometheus query '%s' = %.2f %s %.2f", trigger.Query, actualValue, trigger.Operator, trigger.Threshold)
+			return triggered, reason, nil
+		}
+	}
+	
+	// Fall back to basic metrics evaluation
 	// Parse the query to understand what metric is being requested
-	// This is a very simplified approach
 	if strings.Contains(trigger.Query, "node_cpu") {
 		if len(metrics.Nodes) > 0 {
 			total := 0.0
@@ -482,22 +516,29 @@ func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1
 	}
 
 	// Evaluate the threshold
-	triggered := false
-	switch trigger.Operator {
-	case ">":
-		triggered = actualValue > trigger.Threshold
-	case ">=":
-		triggered = actualValue >= trigger.Threshold
-	case "<":
-		triggered = actualValue < trigger.Threshold
-	case "<=":
-		triggered = actualValue <= trigger.Threshold
-	default:
-		return false, "", fmt.Errorf("unknown operator: %s", trigger.Operator)
-	}
-
+	triggered := c.evaluateThreshold(actualValue, trigger.Threshold, trigger.Operator)
 	reason := fmt.Sprintf("query '%s' result %.2f %s %.2f", trigger.Query, actualValue, trigger.Operator, trigger.Threshold)
 	return triggered, reason, nil
+}
+
+// evaluateThreshold compares a value against a threshold using the given operator
+func (c *Collector) evaluateThreshold(value, threshold float64, operator string) bool {
+	switch operator {
+	case ">":
+		return value > threshold
+	case ">=":
+		return value >= threshold
+	case "<":
+		return value < threshold
+	case "<=":
+		return value <= threshold
+	case "==":
+		return value == threshold
+	case "!=":
+		return value != threshold
+	default:
+		return false
+	}
 }
 
 // evaluateEventTrigger evaluates an event-based trigger

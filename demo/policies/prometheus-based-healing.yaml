@@ -1,0 +1,133 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: prometheus-based-healing
+  namespace: demo-apps
+spec:
+  selector:
+    labelSelector:
+      matchLabels:
+        app: flaky-web-app
+    resources:
+      - apiVersion: v1
+        kind: Pod
+  
+  triggers:
+  # Example 1: Using Prometheus for HTTP error rate
+  - name: high-http-error-rate
+    type: metric
+    metricTrigger:
+      # PromQL query - this will use Prometheus if available
+      query: |
+        sum(rate(http_requests_total{job="flaky-web-app",status=~"5.."}[5m])) 
+        / sum(rate(http_requests_total{job="flaky-web-app"}[5m]))
+      threshold: 0.1  # 10% error rate
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "5m"
+
+  # Example 2: P99 latency from Prometheus
+  - name: high-latency-p99
+    type: metric
+    metricTrigger:
+      query: |
+        histogram_quantile(0.99, 
+          sum(rate(http_request_duration_seconds_bucket{job="flaky-web-app"}[5m])) 
+          by (le)
+        )
+      threshold: 2.0  # 2 seconds
+      operator: ">"
+      duration: "3m"
+    cooldownPeriod: "10m"
+
+  # Example 3: Custom application metric
+  - name: connection-pool-exhausted
+    type: metric
+    metricTrigger:
+      query: |
+        max(connection_pool_active_connections{app="flaky-web-app"}) 
+        / max(connection_pool_max_connections{app="flaky-web-app"})
+      threshold: 0.95  # 95% of connections used
+      operator: ">"
+      duration: "1m"
+    cooldownPeriod: "5m"
+
+  # Example 4: Combining metrics for complex scenarios
+  - name: memory-pressure-with-traffic
+    type: metric
+    metricTrigger:
+      query: |
+        (
+          sum(container_memory_working_set_bytes{pod=~"flaky-web-app-.*"}) 
+          / sum(container_spec_memory_limit_bytes{pod=~"flaky-web-app-.*"})
+        ) > 0.8 
+        and 
+        sum(rate(http_requests_total{job="flaky-web-app"}[5m])) > 100
+      threshold: 1  # Boolean result
+      operator: "=="
+      duration: "2m"
+    cooldownPeriod: "10m"
+
+  actions:
+  - name: restart-on-errors
+    type: restart
+    description: "Restart pods with high error rates"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
+
+  - name: scale-on-latency
+    type: scale
+    description: "Scale up when latency is high"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 2
+      maxReplicas: 10
+    priority: 20
+    requiresApproval: false
+
+  - name: increase-connection-pool
+    type: patch
+    description: "Increase connection pool size"
+    patchAction:
+      type: "strategic"
+      patch: |
+        spec:
+          containers:
+          - name: app
+            env:
+            - name: MAX_CONNECTIONS
+              value: "200"
+    priority: 15
+    requiresApproval: true
+
+  safetyRules:
+    maxActionsPerHour: 10
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+  
+  mode: "automatic"
+---
+# Example ConfigMap to enable Prometheus in the operator
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubeskippy-config
+  namespace: kubeskippy-system
+data:
+  config.yaml: |
+    metrics:
+      prometheusURL: "http://prometheus.monitoring:9090"
+      metricsServerEnabled: true
+      collectionInterval: 30s
+      # Define custom queries that can be referenced by name
+      customQueries:
+        app_health_score: |
+          (1 - sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) 
+          * (1 - (sum(container_memory_working_set_bytes) / sum(container_spec_memory_limit_bytes)))
+        
+        business_impact: |
+          sum(rate(payment_transactions_failed_total[5m])) * avg(payment_transaction_value_dollars)

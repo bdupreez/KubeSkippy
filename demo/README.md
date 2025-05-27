@@ -8,10 +8,13 @@ This demo showcases KubeSkippy's autonomous healing capabilities by simulating v
 # 1. Setup the demo environment
 ./setup.sh
 
-# 2. Watch healing in action (new terminal)
+# 2. (Optional) Setup with Prometheus for advanced metrics
+./setup.sh --with-prometheus
+
+# 3. Watch healing in action (new terminal)
 ./monitor.sh
 
-# 3. Quick demo with all features
+# 4. Quick demo with all features
 ./quick-demo.sh
 ```
 
@@ -53,6 +56,12 @@ The demo includes four problematic applications that trigger different healing p
 - **Triggers**: Multiple metrics and event patterns
 - **Actions**: Intelligent remediation based on AI analysis
 - **Mode**: Dryrun (can be changed to automatic)
+
+### 6. Prometheus-Based Healing (Optional)
+- **Triggers**: PromQL queries for advanced metrics
+- **Metrics**: HTTP error rates, P99 latency, custom app metrics
+- **Actions**: Context-aware healing based on real application behavior
+- **Mode**: Automatic (requires --with-prometheus setup)
 
 ## Managing AI-Driven Healing
 

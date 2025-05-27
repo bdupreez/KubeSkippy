@@ -151,6 +151,17 @@ func main() {
 	// Create metrics collector
 	metricsCollector := kubemetrics.NewCollector(mgr.GetClient(), clientset, metricsClientset)
 	
+	// Configure Prometheus if enabled
+	if cfg.Metrics.PrometheusURL != "" {
+		setupLog.Info("Configuring Prometheus integration", "url", cfg.Metrics.PrometheusURL)
+		if err := metricsCollector.WithPrometheus(cfg.Metrics.PrometheusURL); err != nil {
+			setupLog.Error(err, "Failed to configure Prometheus integration")
+			// Continue without Prometheus - it's optional
+		} else {
+			setupLog.Info("Prometheus integration enabled successfully")
+		}
+	}
+	
 	// Create remediation engine with action recorder
 	actionRecorder := remediation.NewInMemoryActionRecorder(24 * time.Hour)
 	actionRecorder.StartCleanupLoop(ctx, 1*time.Hour)

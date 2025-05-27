@@ -103,10 +103,31 @@ echo "✅ Demo applications deployed!"
 echo ""
 echo "🏥 Applying healing policies..."
 for policy in policies/*.yaml; do
-    echo "  - Applying $(basename $policy)..."
-    kubectl apply -f $policy
+    if [[ ! "$policy" == *"prometheus-based"* ]] || [[ "$WITH_PROMETHEUS" == "true" ]]; then
+        echo "  - Applying $(basename $policy)..."
+        kubectl apply -f $policy
+    fi
 done
 echo "✅ Healing policies applied!"
+
+# Optional: Deploy Prometheus
+if [[ "$1" == "--with-prometheus" ]] || [[ "$WITH_PROMETHEUS" == "true" ]]; then
+    echo ""
+    echo "📊 Deploying Prometheus..."
+    kubectl apply -f prometheus/prometheus-demo.yaml
+    echo "⏳ Waiting for Prometheus to be ready..."
+    kubectl wait --for=condition=ready pod -l app=prometheus -n monitoring --timeout=120s || true
+    
+    # Update operator config to use Prometheus
+    kubectl patch configmap kubeskippy-config -n ${NAMESPACE} --type merge -p '
+    {
+      "data": {
+        "config.yaml": "metrics:\n  prometheusURL: \"http://prometheus.monitoring:9090\"\n"
+      }
+    }' 2>/dev/null || echo "Config will use Prometheus when operator restarts"
+    
+    echo "✅ Prometheus deployed!"
+fi
 
 # Show status
 echo ""
