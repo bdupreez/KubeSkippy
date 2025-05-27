@@ -4,64 +4,60 @@ metadata:
   name: service-degradation-healing
   namespace: demo-apps
 spec:
-  description: "Handle service degradation and intermittent failures"
-  enabled: true
-  
-  target:
-    apiVersion: v1
-    kind: Service
-    name: flaky-web-app
+  selector:
+    labelSelector:
+      matchLabels:
+        app: flaky-web-app
+    resources:
+      - apiVersion: v1
+        kind: Pod
   
   triggers:
-  - type: Threshold
-    threshold:
-      metric: "error_rate_percent"
+  - name: high-error-rate
+    type: metric
+    metricTrigger:
+      query: "error_rate_percent"
+      threshold: 5
       operator: ">"
-      value: "5"
       duration: "2m"
+    cooldownPeriod: "5m"
   
-  - type: SLO
-    slo:
-      name: "availability"
-      target: 99.5
-      window: "5m"
-      burnRate: 2
+  - name: availability-issue
+    type: metric
+    metricTrigger:
+      query: "availability_percent"
+      threshold: 99.5
+      operator: "<"
+      duration: "5m"
+    cooldownPeriod: "10m"
   
   actions:
-  - type: restart
+  - name: restart-pods
+    type: restart
+    description: "Restart pods with high error rates"
     restartAction:
       strategy: "rolling"
-      maxUnavailable: 1
-    priority: 1
-    when:
-      - condition: "error_rate_percent > 10"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
   
-  - type: scale
+  - name: scale-up-service
+    type: scale
+    description: "Scale up to handle increased error rates"
     scaleAction:
-      mode: "temporary"
-      replicas: 5
-      duration: "30m"
-    priority: 2
-    when:
-      - condition: "error_rate_percent > 5 AND error_rate_percent <= 10"
-  
-  - type: traffic-shift
-    trafficShiftAction:
-      strategy: "gradual"
-      canaryPercent: 10
-      incrementPercent: 10
-      intervalMinutes: 5
-    priority: 3
-    when:
-      - condition: "new_version_available = true"
+      direction: "up"
+      replicas: 2
+      minReplicas: 2
+      maxReplicas: 5
+    priority: 20
+    requiresApproval: false
   
   safetyRules:
     maxActionsPerHour: 6
-    dryRun: false
-    requireApproval: false
-    minimumPodsAvailable: 2
+    protectedResources:
+      - apiVersion: v1
+        kind: Pod
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
   
-  monitoring:
-    alertOnFailure: true
-    sloReporting: true
-    dashboardURL: "http://grafana.monitoring.svc/d/service-health"
+  mode: "automatic"

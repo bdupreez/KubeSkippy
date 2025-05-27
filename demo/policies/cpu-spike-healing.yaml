@@ -4,44 +4,50 @@ metadata:
   name: cpu-spike-healing
   namespace: demo-apps
 spec:
-  description: "Handle CPU spikes and high CPU usage scenarios"
-  enabled: true
-  
-  target:
-    apiVersion: apps/v1
-    kind: Deployment
+  selector:
     labelSelector:
       matchLabels:
         issue: "cpu-spike"
+    resources:
+      - apiVersion: apps/v1
+        kind: Deployment
   
   triggers:
-  - type: Threshold
-    threshold:
-      metric: "cpu_usage_percent"
+  - name: high-cpu-usage
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 80
       operator: ">"
-      value: "80"
       duration: "2m"
+    cooldownPeriod: "5m"
   
-  - type: Pattern
-    pattern:
-      name: "cpu_spike_pattern"
-      metrics:
-        - "cpu_usage_percent"
-      window: "15m"
-      anomalyThreshold: 2.5  # Standard deviations from mean
+  - name: cpu-anomaly-pattern
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 90
+      operator: ">"
+      duration: "1m"
+    cooldownPeriod: "10m"
   
   actions:
-  - type: scale
+  - name: scale-deployment
+    type: scale
+    description: "Scale deployment horizontally when CPU usage is high"
     scaleAction:
-      mode: "horizontal"
-      min: 2
-      max: 5
-      targetCPU: 60
-    when:
-      - condition: "cpu_usage_percent > 80"
+      direction: "up"
+      replicas: 1
+      minReplicas: 2
+      maxReplicas: 5
+    priority: 10
+    requiresApproval: false
   
-  - type: patch
+  - name: apply-cpu-limit-patch
+    type: patch
+    description: "Apply CPU limit patch to reduce throttling"
     patchAction:
+      type: "strategic"
       patch: |
         spec:
           template:
@@ -51,15 +57,12 @@ spec:
                 resources:
                   limits:
                     cpu: "1500m"
-    when:
-      - condition: "cpu_throttling_percent > 20"
+    priority: 20
+    requiresApproval: false
   
   safetyRules:
     maxActionsPerHour: 4
-    dryRun: false
-    requireApproval: false
-    preventCascadingActions: true
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
   
-  monitoring:
-    alertOnFailure: true
-    metricsRetention: "24h"
+  mode: "automatic"

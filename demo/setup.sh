@@ -33,6 +33,27 @@ echo "📦 Installing CRDs..."
 kubectl apply -f ../config/crd/bases/
 echo "✅ CRDs installed!"
 
+# Install metrics-server
+echo ""
+echo "📊 Installing metrics-server..."
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+# Patch metrics-server for kind (disable TLS verification)
+kubectl patch deployment metrics-server -n kube-system --type='json' -p='[
+  {
+    "op": "add",
+    "path": "/spec/template/spec/containers/0/args/-",
+    "value": "--kubelet-insecure-tls"
+  },
+  {
+    "op": "add", 
+    "path": "/spec/template/spec/containers/0/args/-",
+    "value": "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname"
+  }
+]'
+echo "⏳ Waiting for metrics-server to be ready..."
+kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=300s
+echo "✅ Metrics-server installed!"
+
 # Deploy Ollama
 echo ""
 echo "🤖 Deploying Ollama..."
@@ -52,8 +73,15 @@ echo "✅ Operator image built and loaded!"
 echo ""
 echo "🚀 Deploying KubeSkippy operator..."
 kubectl create namespace ${NAMESPACE} || true
-kubectl apply -f ../config/rbac/
-# Note: You'll need to create a deployment manifest for the operator
+
+# Build the kustomized operator manifests and deploy
+echo "  - Building operator manifests..."
+cd ../config/manager && kustomize edit set image controller=kubeskippy:latest
+cd ../..
+kustomize build config/default | kubectl apply -f -
+
+echo "⏳ Waiting for operator to be ready..."
+kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n ${NAMESPACE} --timeout=120s
 echo "✅ Operator deployed!"
 
 # Create demo namespace

@@ -1,212 +1,218 @@
 # KubeSkippy Demo
 
-This demo showcases KubeSkippy's auto-healing capabilities with various problematic applications and healing policies.
-
-## Prerequisites
-
-- Docker installed and running
-- kubectl installed
-- Kind (Kubernetes in Docker) installed
-- make installed
-- At least 8GB of available RAM
+This demo showcases KubeSkippy's autonomous healing capabilities by simulating various application issues and watching the operator automatically detect and remediate them.
 
 ## Quick Start
 
-1. **Start the demo cluster:**
-   ```bash
-   make demo-up
-   ```
+```bash
+# 1. Setup the demo environment
+./setup.sh
 
-2. **Deploy the operator:**
-   ```bash
-   make demo-deploy-operator
-   ```
+# 2. Watch healing in action (new terminal)
+./monitor.sh
 
-3. **Deploy demo applications:**
-   ```bash
-   make demo-deploy-apps
-   ```
-
-4. **Apply healing policies:**
-   ```bash
-   make demo-apply-policies
-   ```
-
-5. **Watch the magic happen:**
-   ```bash
-   make demo-watch
-   ```
+# 3. Quick demo with all features
+./quick-demo.sh
+```
 
 ## Demo Applications
 
-### 1. CrashLoop App
-- **Issue**: Application crashes every 30 seconds
-- **Symptoms**: High restart count, CrashLoopBackOff status
-- **Healing**: Automatic restart with debug mode enabled
+The demo includes four problematic applications that trigger different healing policies:
 
-### 2. Memory Leak App
-- **Issue**: Gradually consumes more memory
-- **Symptoms**: Increasing memory usage, eventual OOMKilled
-- **Healing**: Rolling restart when memory exceeds 85%
-
-### 3. CPU Spike App
-- **Issue**: Periodic CPU spikes causing throttling
-- **Symptoms**: High CPU usage, performance degradation
-- **Healing**: Horizontal scaling and resource limit adjustment
-
-### 4. Flaky Web App
-- **Issue**: Random HTTP errors and timeouts
-- **Symptoms**: Intermittent 5xx errors, failed health checks
-- **Healing**: Rolling restart or temporary scaling
+| Application | Issue | Healing Actions |
+|------------|-------|-----------------|
+| **crashloop-app** | Exits with error code 1 | • Apply debug patches<br>• Restart pods |
+| **memory-leak-app** | Memory grows to 500MB then crashes | • Restart pods<br>• Scale deployment |
+| **cpu-spike-app** | Random CPU spikes | • Scale horizontally<br>• Apply CPU limits |
+| **flaky-web-app** | 20% error rate (500/502/504) | • Restart pods<br>• Scale up service |
 
 ## Healing Policies
 
-### Standard Policies
+### 1. Crashloop Pod Healing
+- **Triggers**: Restart count > 3 or CrashLoopBackOff status
+- **Actions**: Applies debug environment variables and restarts pods
+- **Mode**: Automatic
 
-1. **crashloop-pod-healing**: Handles pods in CrashLoopBackOff
-2. **memory-leak-healing**: Manages high memory usage
-3. **cpu-spike-healing**: Responds to CPU spikes
-4. **service-degradation-healing**: Maintains service SLOs
+### 2. Memory Leak Healing
+- **Triggers**: Memory usage > 85% for 3 minutes
+- **Actions**: Rolling restart and horizontal scaling
+- **Mode**: Automatic
 
-### AI-Driven Policy
+### 3. CPU Spike Healing
+- **Triggers**: CPU usage > 80% for 2 minutes
+- **Actions**: Horizontal scaling and CPU limit adjustment
+- **Mode**: Automatic
+- **Note**: May not trigger in demo if CPU usage stays below threshold
 
-The `ai-driven-healing` policy uses AI to analyze complex issues:
-- Analyzes metrics, events, and patterns
-- Provides intelligent recommendations
-- Requires approval for safety
+### 4. Service Degradation Healing
+- **Triggers**: Error rate > 5% or availability < 99.5%
+- **Actions**: Restart pods and scale up deployment
+- **Mode**: Automatic
+
+### 5. AI-Driven Healing
+- **Triggers**: Multiple metrics and event patterns
+- **Actions**: Intelligent remediation based on AI analysis
+- **Mode**: Dryrun (can be changed to automatic)
+
+## Managing AI-Driven Healing
+
+The AI-driven healing policy runs in `dryrun` mode by default to prevent unintended actions. You can switch modes:
+
+```bash
+# Enable automatic mode (healing actions will be executed)
+kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+  --type merge -p '{"spec":{"mode":"automatic"}}'
+
+# Switch back to dryrun mode (actions logged but not executed)
+kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+  --type merge -p '{"spec":{"mode":"dryrun"}}'
+
+# Check current mode
+kubectl get healingpolicy ai-driven-healing -n demo-apps -o jsonpath='{.spec.mode}'
+echo
+```
 
 ## Monitoring the Demo
 
-### View Healing Actions
+### Watch Real-time Status
 ```bash
-kubectl get healingactions -n demo-apps -w
+./monitor.sh
 ```
 
-### Check Policy Status
+This shows:
+- Pod status and restart counts
+- Resource usage (CPU/Memory)
+- Active healing policies
+- Healing actions being created
+- Recent events
+- Operator logs
+
+### Check Healing Actions
 ```bash
-kubectl get healingpolicies -n demo-apps
+# List all healing actions
+kubectl get healingactions -n demo-apps
+
+# Watch healing actions being created
+kubectl get healingactions -n demo-apps -w
+
+# Check specific healing action details
+kubectl describe healingaction <action-name> -n demo-apps
 ```
 
 ### View Operator Logs
 ```bash
+# Follow operator logs
 kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager -f
-```
 
-### Describe a Healing Action
-```bash
-kubectl describe healingaction -n demo-apps <action-name>
+# Check trigger evaluations
+kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager | grep "Trigger"
 ```
 
 ## Demo Scenarios
 
-### Scenario 1: Automatic Pod Recovery
-1. Watch the crashloop-app pods
-2. Observe automatic restarts after 3 failures
-3. Check the healing action created
+### Scenario 1: Basic Healing Demo (2-3 minutes)
+1. Run `./setup.sh` to start the demo
+2. Watch `./monitor.sh` in another terminal
+3. Within 1-2 minutes, you'll see:
+   - Crashloop pods getting debug patches
+   - Memory leak pods being restarted
+   - Service degradation scaling up flaky-web-app
+4. Check healing actions: `kubectl get healingactions -n demo-apps`
 
-### Scenario 2: Memory Leak Mitigation
-1. Monitor memory usage of memory-leak-app
-2. Watch for automatic restart at 85% usage
-3. Verify memory is reclaimed
+### Scenario 2: AI-Driven Healing (1 minute)
+```bash
+# Enable AI-driven healing
+kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+  --type merge -p '{"spec":{"mode":"automatic"}}'
 
-### Scenario 3: CPU Spike Handling
-1. Observe CPU spikes in cpu-spike-app
-2. Watch for automatic scaling
-3. Check new resource limits applied
+# Wait 30 seconds for triggers to evaluate
+sleep 30
 
-### Scenario 4: AI Analysis
-1. Enable AI-driven healing
-2. Create a complex failure scenario
-3. Review AI recommendations
-4. Approve suggested actions
+# Check AI-driven actions
+kubectl get healingactions -n demo-apps | grep ai-driven
+
+# Switch back to dryrun
+kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+  --type merge -p '{"spec":{"mode":"dryrun"}}'
+```
+
+### Scenario 3: Quick Demo Script
+```bash
+./quick-demo.sh
+```
+
+This script will:
+- Show current issues
+- Enable AI-driven healing temporarily
+- Display healing actions
+- Revert AI-driven healing to dryrun
+
+## Expected Timeline
+
+After starting the demo:
+- **0-30 seconds**: Pods start, some begin crashing
+- **30-60 seconds**: Metrics collection begins
+- **1-2 minutes**: First healing actions for crashloop pods
+- **2-3 minutes**: Memory and service degradation healing
+- **3-5 minutes**: Multiple rounds of healing actions
+
+## Cleanup
+
+```bash
+./cleanup.sh
+```
+
+This will:
+- Delete the demo namespace
+- Remove the KubeSkippy operator
+- Delete the Kind cluster
 
 ## Troubleshooting
 
-### Ollama Connection Issues
+### No Healing Actions Created
 ```bash
-# Check Ollama status
-kubectl get pods -n kubeskippy-system -l app=ollama
+# Check operator is running
+kubectl get pods -n kubeskippy-system
 
-# View Ollama logs
-kubectl logs -n kubeskippy-system -l app=ollama
+# Check for errors
+kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager | grep ERROR
+
+# Verify pods have correct labels
+kubectl get pods -n demo-apps --show-labels
 ```
 
-### Healing Not Triggered
-1. Check policy is enabled: `kubectl get healingpolicy <name> -o yaml`
-2. Verify metrics collection: `kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager | grep metrics`
-3. Check safety rules aren't blocking: Look for rate limit messages
-
-### Demo Cleanup
+### Healing Actions Not Executing
 ```bash
-make demo-down
+# Check action phase
+kubectl get healingactions -n demo-apps
+
+# Look for safety controller blocks
+kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager | grep "Rate limit"
 ```
 
-## Advanced Usage
-
-### Custom Healing Policy
-Create your own healing policy:
-```yaml
-apiVersion: kubeskippy.io/v1alpha1
-kind: HealingPolicy
-metadata:
-  name: custom-healing
-  namespace: demo-apps
-spec:
-  # Your custom configuration
-```
-
-### Dry Run Mode
-Test policies without executing actions:
+### High Resource Usage
+The demo apps intentionally consume resources. If needed:
 ```bash
-kubectl patch healingpolicy <name> -n demo-apps --type merge -p '{"spec":{"safetyRules":{"dryRun":true}}}'
+# Scale down apps
+kubectl scale deployment --all --replicas=1 -n demo-apps
+
+# Check resource usage
+kubectl top pods -n demo-apps
 ```
 
-### Manual Healing Action
-Trigger healing manually:
+## Key Commands Reference
+
 ```bash
-kubectl create -f - <<EOF
-apiVersion: kubeskippy.io/v1alpha1
-kind: HealingAction
-metadata:
-  name: manual-restart
-  namespace: demo-apps
-spec:
-  policyName: manual
-  target:
-    apiVersion: v1
-    kind: Pod
-    name: <pod-name>
-  action:
-    type: restart
-EOF
+# Policy management
+kubectl get healingpolicies -n demo-apps
+kubectl describe healingpolicy <name> -n demo-apps
+kubectl patch healingpolicy <name> -n demo-apps --type merge -p '{"spec":{"mode":"dryrun"}}'
+
+# Action monitoring  
+kubectl get healingactions -n demo-apps
+kubectl get healingactions -n demo-apps -w
+kubectl delete healingactions --all -n demo-apps  # Clean up old actions
+
+# Quick status check
+./check-demo.sh
 ```
-
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│ Metrics Server  │────▶│ KubeSkippy       │────▶│ Remediation     │
-│ Prometheus      │     │ Controller       │     │ Engine          │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                               │                          │
-                               ▼                          ▼
-                        ┌──────────────────┐     ┌─────────────────┐
-                        │ AI Analyzer      │     │ Safety          │
-                        │ (Ollama/OpenAI)  │     │ Controller      │
-                        └──────────────────┘     └─────────────────┘
-```
-
-## Contributing
-
-To add new demo scenarios:
-1. Create a new app in `demo/apps/`
-2. Create a healing policy in `demo/policies/`
-3. Update this README with the scenario
-4. Submit a PR!
-
-## Learn More
-
-- [KubeSkippy Documentation](../README.md)
-- [Healing Policy Reference](../docs/healing-policy.md)
-- [Safety Rules Guide](../docs/safety-rules.md)
-- [AI Integration Guide](../docs/ai-integration.md)

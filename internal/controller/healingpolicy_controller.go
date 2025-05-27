@@ -154,6 +154,8 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 			continue
 		}
 
+		log.Info("Trigger evaluation result", "trigger", trigger.Name, "type", trigger.Type, "triggered", triggered, "reason", reason)
+
 		if triggered {
 			log.Info("Trigger activated", "trigger", trigger.Name, "reason", reason)
 			activeTriggers = append(activeTriggers, trigger.Name)

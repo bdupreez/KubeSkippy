@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.21 as builder
+FROM golang:1.22 as builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -12,10 +12,10 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY cmd/main.go cmd/main.go
+COPY cmd/manager/main.go cmd/main.go
 COPY api/ api/
-COPY controllers/ controllers/
 COPY internal/ internal/
+COPY pkg/ pkg/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command

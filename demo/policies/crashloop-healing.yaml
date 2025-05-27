@@ -4,38 +4,47 @@ metadata:
   name: crashloop-pod-healing
   namespace: demo-apps
 spec:
-  description: "Automatically handle pods in CrashLoopBackOff state"
-  enabled: true
-  
-  target:
-    apiVersion: v1
-    kind: Pod
+  selector:
     labelSelector:
       matchLabels:
         issue: "crashloop"
+    resources:
+      - apiVersion: v1
+        kind: Pod
   
   triggers:
-  - type: Threshold
-    threshold:
-      metric: "restart_count"
+  - name: high-restart-count
+    type: metric
+    metricTrigger:
+      query: "restart_count"
+      threshold: 3
       operator: ">"
-      value: "3"
       duration: "5m"
+    cooldownPeriod: "5m"
   
-  - type: Condition
-    condition:
-      name: "CrashLoopBackOff"
+  - name: crashloop-condition
+    type: condition
+    conditionTrigger:
+      type: "CrashLoopBackOff"
       status: "True"
       duration: "2m"
+    cooldownPeriod: "5m"
   
   actions:
-  - type: restart
+  - name: restart-crashed-pods
+    type: restart
+    description: "Restart pods in CrashLoopBackOff"
     restartAction:
-      strategy: "graceful"
-      gracePeriod: 30
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
   
-  - type: patch
+  - name: debug-patch
+    type: patch
+    description: "Apply debug environment variables"
     patchAction:
+      type: "strategic"
       patch: |
         spec:
           containers:
@@ -43,17 +52,15 @@ spec:
             env:
             - name: DEBUG
               value: "true"
-            - name: RESTART_TIMESTAMP
-              value: "{{ .Timestamp }}"
+    priority: 20
+    requiresApproval: false
   
   safetyRules:
     maxActionsPerHour: 5
-    dryRun: false
-    requireApproval: false
-    protectedLabels:
-      critical: "true"
+    protectedResources:
+      - apiVersion: v1
+        kind: Pod
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
   
-  monitoring:
-    alertOnFailure: true
-    successMetric: "pod_restart_success_total"
-    failureMetric: "pod_restart_failure_total"
+  mode: "automatic"

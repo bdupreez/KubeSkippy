@@ -80,7 +80,7 @@ type MetricTrigger struct {
 	Threshold float64 `json:"threshold"`
 
 	// Operator for comparison
-	// +kubebuilder:validation:Enum=">;";"<";">=";<=
+	// +kubebuilder:validation:Enum=">";"<";">=";"<="
 	Operator string `json:"operator"`
 
 	// Duration the condition must be true

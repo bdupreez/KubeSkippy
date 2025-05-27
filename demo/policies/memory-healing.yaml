@@ -4,52 +4,57 @@ metadata:
   name: memory-leak-healing
   namespace: demo-apps
 spec:
-  description: "Handle applications with memory leaks or high memory usage"
-  enabled: true
-  
-  target:
-    apiVersion: v1
-    kind: Pod
+  selector:
     labelSelector:
       matchLabels:
         issue: "memory-leak"
+    resources:
+      - apiVersion: v1
+        kind: Pod
   
   triggers:
-  - type: Threshold
-    threshold:
-      metric: "memory_usage_percent"
+  - name: high-memory-usage
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 85
       operator: ">"
-      value: "85"
       duration: "3m"
+    cooldownPeriod: "5m"
   
-  - type: Trend
-    trend:
-      metric: "memory_usage_bytes"
-      direction: "increasing"
-      window: "10m"
-      minChange: "20"  # 20% increase
+  - name: memory-growth-trend
+    type: metric
+    metricTrigger:
+      query: "memory_usage_bytes"
+      threshold: 90
+      operator: ">"
+      duration: "1m"
+    cooldownPeriod: "10m"
   
   actions:
-  - type: restart
+  - name: restart-leaking-pods
+    type: restart
+    description: "Restart pods with high memory usage"
     restartAction:
       strategy: "rolling"
-      gracePeriod: 60
-    when:
-      - condition: "memory_usage_percent > 90"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
   
-  - type: scale
+  - name: scale-up-deployment
+    type: scale
+    description: "Scale up deployment to handle memory pressure"
     scaleAction:
-      replicas: 3
-    when:
-      - condition: "memory_usage_percent > 80 AND replicas < 3"
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+    priority: 20
+    requiresApproval: false
   
   safetyRules:
     maxActionsPerHour: 3
-    dryRun: false
-    requireApproval: false
-    cooldownPeriod: "10m"
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
   
-  monitoring:
-    alertOnFailure: true
-    collectMetricsBeforeAction: true
-    collectMetricsAfterAction: true
+  mode: "automatic"

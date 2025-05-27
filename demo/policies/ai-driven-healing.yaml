@@ -4,79 +4,86 @@ metadata:
   name: ai-driven-healing
   namespace: demo-apps
 spec:
-  description: "AI-driven analysis and healing for complex issues"
-  enabled: true
-  
-  target:
-    apiVersion: v1
-    kind: Pod
+  selector:
     labelSelector:
-      matchLabels:
-        demo: "true"
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["memory-leak", "cpu-spike", "crashloop", "intermittent-failures"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
   
   triggers:
-  - type: AI
-    ai:
-      model: "llama2:7b"
-      provider: "ollama"
-      analysisInterval: "5m"
-      confidenceThreshold: "0.75"
-      includeMetrics:
-        - "cpu_usage_percent"
-        - "memory_usage_percent"
-        - "restart_count"
-        - "error_rate"
-        - "response_time_p99"
-      includeEvents: true
-      includeLogs: false
+  - name: high-cpu-usage
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 80
+      operator: ">"
+      duration: "5m"
+    cooldownPeriod: "10m"
   
-  - type: Composite
-    composite:
-      operator: "OR"
-      conditions:
-        - "error_rate > 10"
-        - "response_time_p99 > 5000"
-        - "availability < 99"
+  - name: high-memory-usage
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 70
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "10m"
+  
+  - name: high-error-rate
+    type: metric
+    metricTrigger:
+      query: "error_rate"
+      threshold: 10
+      operator: ">"
+      duration: "3m"
+    cooldownPeriod: "5m"
+  
+  - name: pod-restart-events
+    type: event
+    eventTrigger:
+      reason: "Restarted"
+      type: "Warning"
+      count: 3
+      window: "15m"
+    cooldownPeriod: "10m"
   
   actions:
-  - type: ai-recommended
-    priority: 1
-    confidenceThreshold: 0.8
-  
-  - type: restart
+  - name: restart-pods
+    type: restart
+    description: "Restart pods with issues"
     restartAction:
       strategy: "rolling"
-    priority: 2
-    when:
-      - condition: "ai_confidence < 0.8"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
+  
+  - name: scale-up-deployment
+    type: scale
+    description: "Scale up when resource usage is high"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 5
+    priority: 20
+    requiresApproval: false
+  
+  - name: delete-problematic-pods
+    type: delete
+    description: "Delete pods in crash loop"
+    priority: 30
+    requiresApproval: true
   
   safetyRules:
     maxActionsPerHour: 2
-    dryRun: true  # Start with dry-run for AI recommendations
-    requireApproval: true
-    requireHumanApprovalFor:
-      - "delete"
-      - "scale-down"
-    protectedNamespaces:
-      - "kube-system"
-      - "kube-public"
+    protectedResources:
+      - apiVersion: v1
+        kind: Pod
+    requireHealthCheck: true
+    healthCheckTimeout: "3m"
   
-  monitoring:
-    alertOnFailure: true
-    logAIDecisions: true
-    exportMetrics: true
-  
-  aiConfig:
-    systemPrompt: |
-      You are analyzing a Kubernetes application experiencing issues.
-      Consider resource usage, error patterns, and recent events.
-      Provide specific, actionable recommendations with confidence scores.
-      Prioritize stability and gradual remediation over aggressive actions.
-    
-    maxTokens: 2048
-    temperature: 0.7
-    
-    responseValidation:
-      requireConfidenceScore: true
-      requireRiskAssessment: true
-      requireRollbackPlan: true
+  mode: "automatic"

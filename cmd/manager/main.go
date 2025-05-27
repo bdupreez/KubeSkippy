@@ -201,7 +201,7 @@ func main() {
 
 	// Start manager
 	setupLog.Info("Starting manager", "version", "v0.1.0", "dry-run", cfg.Safety.DryRunMode)
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
