@@ -193,7 +193,10 @@ func BuildQuery(metricType string, labels map[string]string) string {
 			filters += fmt.Sprintf(`%s="%s"`, k, v)
 		}
 		// Insert filters into the query
-		baseQuery = fmt.Sprintf(baseQuery[:strings.Index(baseQuery, "}")] + "," + filters + baseQuery[strings.Index(baseQuery, "}"):])
+		idx := strings.Index(baseQuery, "}")
+		if idx > 0 {
+			baseQuery = baseQuery[:idx] + "," + filters + baseQuery[idx:]
+		}
 	}
 
 	return baseQuery

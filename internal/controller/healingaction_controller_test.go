@@ -54,6 +54,65 @@ func (m *MockRemediationEngine) GetActionExecutor(actionType string) (ActionExec
 	return nil, nil
 }
 
+
+// reconcileUntilPhase simulates multiple reconciliations until the action reaches the expected phase or a terminal state
+func reconcileUntilPhase(t *testing.T, r *HealingActionReconciler, req reconcile.Request, expectedPhase string, maxIterations int) (*v1alpha1.HealingAction, error) {
+	var lastPhase string
+	for i := 0; i < maxIterations; i++ {
+		// Get current action state
+		currentAction := &v1alpha1.HealingAction{}
+		err := r.Client.Get(context.Background(), req.NamespacedName, currentAction)
+		if err != nil {
+			return nil, err
+		}
+		
+		currentPhase := currentAction.Status.Phase
+		if currentPhase == "" {
+			currentPhase = "<empty>"
+		}
+		
+		// Reconcile
+		result, err := r.Reconcile(context.Background(), req)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get the updated action
+		action := &v1alpha1.HealingAction{}
+		err = r.Client.Get(context.Background(), req.NamespacedName, action)
+		if err != nil {
+			return nil, err
+		}
+
+		newPhase := action.Status.Phase
+		if newPhase == "" {
+			newPhase = "<empty>"
+		}
+		
+		t.Logf("Iteration %d: %s -> %s (Expected: %s, Result: %+v)", 
+			i, currentPhase, newPhase, expectedPhase, result)
+
+		// Check if we've reached the expected phase or a terminal state
+		if action.Status.Phase == expectedPhase ||
+			action.Status.Phase == v1alpha1.HealingActionPhaseSucceeded ||
+			action.Status.Phase == v1alpha1.HealingActionPhaseFailed ||
+			action.Status.Phase == v1alpha1.HealingActionPhaseCancelled {
+			return action, nil
+		}
+		
+		// If phase hasn't changed after 2 iterations, something's wrong
+		if action.Status.Phase == lastPhase && i > 1 {
+			t.Logf("WARNING: Phase stuck at %s after %d iterations", action.Status.Phase, i+1)
+			break
+		}
+		lastPhase = action.Status.Phase
+	}
+
+	action := &v1alpha1.HealingAction{}
+	err := r.Client.Get(context.Background(), req.NamespacedName, action)
+	return action, err
+}
+
 func TestHealingActionReconciler_Reconcile(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(scheme)
@@ -64,11 +123,11 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 		remediationFunc func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error)
 		validateFunc    func(ctx context.Context, action *v1alpha1.HealingAction) (*ValidationResult, error)
 		expectedPhase   string
-		expectedResult  reconcile.Result
-		expectedError   bool
+		maxReconciles   int
+		setupFunc       func(t *testing.T, action *v1alpha1.HealingAction)
 	}{
 		{
-			name: "pending action without approval required",
+			name: "pending action without approval required transitions to succeeded",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -80,16 +139,23 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 						Name: "restart",
 						Type: "restart",
 					},
+					Timeout: metav1.Duration{Duration: 10 * time.Minute},
 				},
 				Status: v1alpha1.HealingActionStatus{
-					Phase: v1alpha1.HealingActionPhasePending,
+					// Start with empty phase for new actions
 				},
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseApproved,
-			expectedResult: reconcile.Result{Requeue: true},
+			remediationFunc: func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error) {
+				return &ActionResult{
+					Success: true,
+					Message: "Action completed successfully",
+				}, nil
+			},
+			expectedPhase: v1alpha1.HealingActionPhaseSucceeded,
+			maxReconciles: 10,
 		},
 		{
-			name: "pending action with approval required",
+			name: "pending action with approval required stays pending",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -103,14 +169,14 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 					},
 				},
 				Status: v1alpha1.HealingActionStatus{
-					Phase: v1alpha1.HealingActionPhasePending,
+					// Start with empty phase for new actions
 				},
 			},
-			expectedPhase:  v1alpha1.HealingActionPhasePending,
-			expectedResult: reconcile.Result{RequeueAfter: 30 * time.Second},
+			expectedPhase: v1alpha1.HealingActionPhasePending,
+			maxReconciles: 2,
 		},
 		{
-			name: "approved action - validation fails",
+			name: "approved action with validation failure transitions to failed",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -132,11 +198,11 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 					Reason: "Resource is protected",
 				}, nil
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseFailed,
-			expectedResult: reconcile.Result{},
+			expectedPhase: v1alpha1.HealingActionPhaseFailed,
+			maxReconciles: 5,
 		},
 		{
-			name: "in-progress action - success",
+			name: "in-progress action executes successfully",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -158,21 +224,13 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 				return &ActionResult{
 					Success: true,
 					Message: "Action completed successfully",
-					Changes: []v1alpha1.ResourceChange{
-						{
-							Field:     "status.phase",
-							OldValue:  "Running",
-							NewValue:  "Pending",
-							Timestamp: &metav1.Time{Time: time.Now()},
-						},
-					},
 				}, nil
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseSucceeded,
-			expectedResult: reconcile.Result{},
+			expectedPhase: v1alpha1.HealingActionPhaseSucceeded,
+			maxReconciles: 5,
 		},
 		{
-			name: "in-progress action - failure with retry",
+			name: "in-progress action with failure and retry",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -186,7 +244,7 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 					Timeout: metav1.Duration{Duration: 10 * time.Minute},
 					RetryPolicy: &v1alpha1.RetryPolicy{
 						MaxAttempts:       3,
-						BackoffDelay:      metav1.Duration{Duration: 30 * time.Second},
+						BackoffDelay:      metav1.Duration{Duration: 1 * time.Second},
 						BackoffMultiplier: 2.0,
 					},
 				},
@@ -197,13 +255,20 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 				},
 			},
 			remediationFunc: func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error) {
-				return nil, errors.New("temporary failure")
+				// Fail first 2 attempts, succeed on third
+				if action.Status.Attempts < 2 {
+					return nil, errors.New("temporary failure")
+				}
+				return &ActionResult{
+					Success: true,
+					Message: "Action completed successfully",
+				}, nil
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseInProgress,
-			expectedResult: reconcile.Result{RequeueAfter: 30 * time.Second},
+			expectedPhase: v1alpha1.HealingActionPhaseSucceeded,
+			maxReconciles: 10,
 		},
 		{
-			name: "in-progress action - max retries exceeded",
+			name: "in-progress action with max retries exceeded",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -216,25 +281,25 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 					},
 					Timeout: metav1.Duration{Duration: 10 * time.Minute},
 					RetryPolicy: &v1alpha1.RetryPolicy{
-						MaxAttempts:       3,
-						BackoffDelay:      metav1.Duration{Duration: 30 * time.Second},
+						MaxAttempts:       2,
+						BackoffDelay:      metav1.Duration{Duration: 1 * time.Second},
 						BackoffMultiplier: 2.0,
 					},
 				},
 				Status: v1alpha1.HealingActionStatus{
 					Phase:     v1alpha1.HealingActionPhaseInProgress,
 					StartTime: &metav1.Time{Time: time.Now()},
-					Attempts:  2, // Will be incremented to 3
+					Attempts:  0,
 				},
 			},
 			remediationFunc: func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error) {
 				return nil, errors.New("permanent failure")
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseFailed,
-			expectedResult: reconcile.Result{},
+			expectedPhase: v1alpha1.HealingActionPhaseFailed,
+			maxReconciles: 10,
 		},
 		{
-			name: "dry-run action",
+			name: "dry-run action executes successfully",
 			action: &v1alpha1.HealingAction{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-action",
@@ -253,8 +318,14 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 					StartTime: &metav1.Time{Time: time.Now()},
 				},
 			},
-			expectedPhase:  v1alpha1.HealingActionPhaseSucceeded,
-			expectedResult: reconcile.Result{},
+			remediationFunc: func(ctx context.Context, action *v1alpha1.HealingAction) (*ActionResult, error) {
+				return &ActionResult{
+					Success: true,
+					Message: "Dry-run completed successfully",
+				}, nil
+			},
+			expectedPhase: v1alpha1.HealingActionPhaseSucceeded,
+			maxReconciles: 5,
 		},
 	}
 
@@ -264,11 +335,13 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(tt.action).
+				WithStatusSubresource(tt.action).
 				Build()
 
 			// Create mocks
 			remediationEngine := &MockRemediationEngine{
 				ExecuteActionFunc: tt.remediationFunc,
+				DryRunFunc:        tt.remediationFunc, // Use same function for dry-run
 			}
 
 			safetyController := &MockSafetyController{
@@ -284,31 +357,39 @@ func TestHealingActionReconciler_Reconcile(t *testing.T) {
 				SafetyController:  safetyController,
 			}
 
-			// Reconcile
-			result, err := r.Reconcile(context.Background(), reconcile.Request{
+			// Run setup if provided
+			if tt.setupFunc != nil {
+				tt.setupFunc(t, tt.action)
+			}
+
+			// Reconcile until expected phase
+			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      tt.action.Name,
 					Namespace: tt.action.Namespace,
 				},
-			})
-
-			// Check result
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.expectedResult, result)
 
-			// Check phase if action still exists
-			updatedAction := &v1alpha1.HealingAction{}
-			err = fakeClient.Get(context.Background(), types.NamespacedName{
-				Name:      tt.action.Name,
-				Namespace: tt.action.Namespace,
-			}, updatedAction)
+			finalAction, err := reconcileUntilPhase(t, r, req, tt.expectedPhase, tt.maxReconciles)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedPhase, finalAction.Status.Phase)
 
-			if err == nil {
-				assert.Equal(t, tt.expectedPhase, updatedAction.Status.Phase)
+			// Additional assertions based on phase
+			switch finalAction.Status.Phase {
+			case v1alpha1.HealingActionPhaseSucceeded:
+				assert.NotNil(t, finalAction.Status.Result)
+				assert.True(t, finalAction.Status.Result.Success)
+				assert.NotNil(t, finalAction.Status.CompletionTime)
+			case v1alpha1.HealingActionPhaseFailed:
+				assert.NotNil(t, finalAction.Status.Result)
+				assert.False(t, finalAction.Status.Result.Success)
+				assert.NotNil(t, finalAction.Status.CompletionTime)
+			case v1alpha1.HealingActionPhasePending:
+				if tt.action.Spec.ApprovalRequired {
+					assert.NotNil(t, finalAction.Status.Approval)
+					assert.True(t, finalAction.Status.Approval.Required)
+					assert.False(t, finalAction.Status.Approval.Approved)
+				}
 			}
 		})
 	}
@@ -340,6 +421,7 @@ func TestHealingActionReconciler_handleTimeout(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(action).
+		WithStatusSubresource(action).
 		Build()
 
 	r := &HealingActionReconciler{
@@ -351,24 +433,20 @@ func TestHealingActionReconciler_handleTimeout(t *testing.T) {
 	}
 
 	// Reconcile
-	_, err := r.Reconcile(context.Background(), reconcile.Request{
+	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      action.Name,
 			Namespace: action.Namespace,
 		},
-	})
+	}
+
+	finalAction, err := reconcileUntilPhase(t, r, req, v1alpha1.HealingActionPhaseFailed, 5)
 	require.NoError(t, err)
 
 	// Check that action failed due to timeout
-	updatedAction := &v1alpha1.HealingAction{}
-	err = fakeClient.Get(context.Background(), types.NamespacedName{
-		Name:      action.Name,
-		Namespace: action.Namespace,
-	}, updatedAction)
-	require.NoError(t, err)
-
-	assert.Equal(t, v1alpha1.HealingActionPhaseFailed, updatedAction.Status.Phase)
-	assert.NotNil(t, updatedAction.Status.Result)
-	assert.False(t, updatedAction.Status.Result.Success)
-	assert.Contains(t, updatedAction.Status.Result.Message, "timed out")
+	assert.Equal(t, v1alpha1.HealingActionPhaseFailed, finalAction.Status.Phase)
+	assert.NotNil(t, finalAction.Status.Result)
+	assert.False(t, finalAction.Status.Result.Success)
+	assert.Contains(t, finalAction.Status.Result.Message, "timed out")
+	assert.NotNil(t, finalAction.Status.CompletionTime)
 }

@@ -59,7 +59,7 @@ func (r *HealingActionReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			log.Error(err, "Failed to add finalizer")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{Requeue: true}, nil
+		// Continue processing instead of requeuing
 	}
 
 	// Handle deletion
@@ -120,13 +120,15 @@ func (r *HealingActionReconciler) handlePending(ctx context.Context, log logr.Lo
 			action.SetPhase(v1alpha1.HealingActionPhasePending, "WaitingForApproval",
 				"Action is waiting for manual approval")
 
-			if err := r.Update(ctx, action); err != nil {
-				log.Error(err, "Failed to update action")
+			// Update status first
+			if err := r.Status().Update(ctx, action); err != nil {
+				log.Error(err, "Failed to update status")
 				return ctrl.Result{}, err
 			}
 
-			if err := r.Status().Update(ctx, action); err != nil {
-				log.Error(err, "Failed to update status")
+			// Update labels
+			if err := r.Update(ctx, action); err != nil {
+				log.Error(err, "Failed to update action")
 				return ctrl.Result{}, err
 			}
 
@@ -143,14 +145,19 @@ func (r *HealingActionReconciler) handlePending(ctx context.Context, log logr.Lo
 			"Action automatically approved")
 	}
 
-	action.Labels[LabelActionPhase] = v1alpha1.HealingActionPhaseApproved
-	if err := r.Update(ctx, action); err != nil {
-		log.Error(err, "Failed to update action")
+	// Update status first
+	if err := r.Status().Update(ctx, action); err != nil {
+		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
 	}
 
-	if err := r.Status().Update(ctx, action); err != nil {
-		log.Error(err, "Failed to update status")
+	// Then update labels
+	if action.Labels == nil {
+		action.Labels = make(map[string]string)
+	}
+	action.Labels[LabelActionPhase] = v1alpha1.HealingActionPhaseApproved
+	if err := r.Update(ctx, action); err != nil {
+		log.Error(err, "Failed to update action")
 		return ctrl.Result{}, err
 	}
 
@@ -188,17 +195,22 @@ func (r *HealingActionReconciler) handleApproved(ctx context.Context, log logr.L
 
 	// Move to in-progress
 	action.SetPhase(v1alpha1.HealingActionPhaseInProgress, "Executing", "Starting action execution")
-	action.Labels[LabelActionPhase] = v1alpha1.HealingActionPhaseInProgress
 	action.Status.StartTime = &metav1.Time{Time: time.Now()}
 	action.Status.Attempts = 0
-
-	if err := r.Update(ctx, action); err != nil {
-		log.Error(err, "Failed to update action")
-		return ctrl.Result{}, err
-	}
-
+	
+	// Update status first
 	if err := r.Status().Update(ctx, action); err != nil {
 		log.Error(err, "Failed to update status")
+		return ctrl.Result{}, err
+	}
+	
+	// Then update labels
+	if action.Labels == nil {
+		action.Labels = make(map[string]string)
+	}
+	action.Labels[LabelActionPhase] = v1alpha1.HealingActionPhaseInProgress
+	if err := r.Update(ctx, action); err != nil {
+		log.Error(err, "Failed to update action")
 		return ctrl.Result{}, err
 	}
 
@@ -306,6 +318,11 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 func (r *HealingActionReconciler) completeAction(ctx context.Context, log logr.Logger, action *v1alpha1.HealingAction) (ctrl.Result, error) {
 	now := metav1.Now()
 	action.Status.CompletionTime = &now
+	
+	// Ensure labels map exists
+	if action.Labels == nil {
+		action.Labels = make(map[string]string)
+	}
 	action.Labels[LabelActionPhase] = action.Status.Phase
 
 	// Create an event
@@ -323,13 +340,15 @@ func (r *HealingActionReconciler) completeAction(ctx context.Context, log logr.L
 
 	r.recordEvent(action, eventType, reason, message)
 
-	if err := r.Update(ctx, action); err != nil {
-		log.Error(err, "Failed to update action")
+	// Update status first (contains phase and completion time)
+	if err := r.Status().Update(ctx, action); err != nil {
+		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
 	}
 
-	if err := r.Status().Update(ctx, action); err != nil {
-		log.Error(err, "Failed to update status")
+	// Then update labels
+	if err := r.Update(ctx, action); err != nil {
+		log.Error(err, "Failed to update action")
 		return ctrl.Result{}, err
 	}
 

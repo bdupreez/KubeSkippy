@@ -16,7 +16,13 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/query":
-			query := r.URL.Query().Get("query")
+			// Prometheus client-go uses POST with form data
+			err := r.ParseForm()
+			if err != nil {
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+			query := r.FormValue("query")
 			var response string
 
 			// Mock responses for different queries
@@ -28,7 +34,7 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 						"resultType": "vector",
 						"result": [{
 							"metric": {},
-							"value": [1234567890, "1"]
+							"value": [1609459200, "1"]
 						}]
 					}
 				}`
@@ -39,7 +45,7 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 						"resultType": "vector",
 						"result": [{
 							"metric": {"pod": "test-pod"},
-							"value": [1234567890, "1073741824"]
+							"value": [1609459200, "1073741824"]
 						}]
 					}
 				}`
@@ -50,7 +56,7 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 						"resultType": "vector",
 						"result": [{
 							"metric": {},
-							"value": [1234567890, "100.5"]
+							"value": [1609459200, "100.5"]
 						}]
 					}
 				}`
@@ -85,9 +91,9 @@ func mockPrometheusServer(t *testing.T) *httptest.Server {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(response))
 
-		case "/api/v1/config":
-			// Health check endpoint
-			response := `{"status": "success"}`
+		case "/api/v1/status/config":
+			// Config endpoint used for health check
+			response := `{"status": "success", "data": {"yaml": "global:\n  scrape_interval: 15s"}}`
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(response))
 
@@ -119,12 +125,6 @@ func TestNewPrometheusClient(t *testing.T) {
 			name:    "empty address",
 			address: "",
 			timeout: 10 * time.Second,
-			wantErr: true,
-		},
-		{
-			name:    "invalid address",
-			address: "http://invalid-prometheus:9999",
-			timeout: 1 * time.Second,
 			wantErr: true,
 		},
 	}

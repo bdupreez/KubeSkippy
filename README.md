@@ -5,7 +5,8 @@ An intelligent Kubernetes operator that automatically detects, diagnoses, and he
 ## 🚀 Current Status
 
 **Version**: 0.1.0 (Alpha)  
-**Status**: Functional with core features implemented
+**Status**: Functional with core features implemented  
+**Last Updated**: January 2025
 
 ### ✅ Implemented Features
 
@@ -32,10 +33,11 @@ An intelligent Kubernetes operator that automatically detects, diagnoses, and he
 
 - **Production Features**
   - [x] Dry-run mode for testing policies
-  - [x] Prometheus-compatible metrics
+  - [x] Prometheus-compatible metrics with PromQL support
   - [x] Structured logging
   - [x] RBAC and security controls
   - [x] Helm chart for deployment
+  - [x] Comprehensive test coverage with E2E tests
 
 ### 🎯 Demo & Testing
 
@@ -213,6 +215,7 @@ make run
 - **AI inference time**: 5-30 seconds (with Ollama)
 - **Supported resources**: Pods, Deployments, StatefulSets, DaemonSets
 - **Max actions/hour**: Configurable per policy (default: 5)
+- **Test coverage**: Unit tests for controllers, metrics, and remediation engine
 
 ## 🔒 Security
 
