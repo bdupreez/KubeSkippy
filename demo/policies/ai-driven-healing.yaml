@@ -76,7 +76,7 @@ spec:
     type: delete
     description: "Delete pods in crash loop"
     priority: 30
-    requiresApproval: true
+    requiresApproval: false
   
   safetyRules:
     maxActionsPerHour: 2

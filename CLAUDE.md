@@ -21,6 +21,7 @@ KubeSkippy is a Kubernetes operator that provides self-healing capabilities for 
    - AI analysis (Ollama/OpenAI)
    - Remediation engine (restart, scale, patch, delete)
    - Safety controller (rate limiting, validation)
+   - Enhanced Grafana monitoring with AI metrics
 
 ## Important Commands
 
@@ -44,8 +45,12 @@ make run
 # Deploy to cluster
 make deploy
 
-# Run demo
-cd demo && ./setup.sh
+# Run demo with monitoring
+cd demo && ./setup.sh --with-monitoring
+
+# Access Grafana dashboard
+# URL: http://localhost:3000 (admin/admin)
+# Enhanced dashboard includes AI metrics section
 ```
 
 ## Coding Standards
@@ -79,10 +84,33 @@ if err := r.Update(ctx, action); err != nil {
 - Mock external dependencies (AI clients, metrics collectors)
 - Simulate multiple reconciliations for state transitions
 
+## Recent Updates (2025-05-28)
+
+### AI Metrics Integration ✅
+- **Custom Metrics**: Added `kubeskippy_healing_actions_total` metric with labels for trigger_type, action_type, namespace, status
+- **Dashboard Enhancement**: Enhanced Grafana dashboard with dedicated 🤖 AI Analysis & Healing section
+- **Real-time Monitoring**: AI activity timeline, backend status, and action tracking
+- **Controller Updates**: HealingActionController now records metrics when actions complete
+- **Build System**: Fixed controller-runtime v0.19.3 compatibility issues with metrics server options
+
+### Enhanced Grafana Dashboard Features
+- **AI-Driven Healing Actions**: Counter panel showing total AI-triggered actions
+- **AI Backend Status**: Ollama/AI service availability indicator  
+- **AI Healing Activity Timeline**: Time series showing AI action rates and lifecycle
+- **AI Actions Table**: Recent AI-driven healing actions with status details
+- **Comprehensive Monitoring**: Matches ./monitor.sh script capabilities with pod status, restarts, resource usage
+
+### Current State
+- ✅ AI operator enabled with Ollama integration
+- ✅ Enhanced Grafana dashboard with AI metrics (http://localhost:3000)
+- ✅ Custom metrics infrastructure recording healing actions
+- ✅ Parallel deployment optimization (~5min setup time)
+- ✅ All automation scripts updated and tested
+
 ## Known Issues
 
-1. **HealingPolicy controller tests**: Some tests expect specific requeue intervals that may need adjustment
-2. **Prometheus mock**: Must handle POST requests with form data, not GET with query params
+1. **Metrics Population**: Custom metrics only populate after healing actions complete
+2. **AI Action Approval**: Delete actions require manual approval for safety
 
 ## AI Integration
 

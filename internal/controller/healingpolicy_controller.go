@@ -213,6 +213,7 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 				ta.Resource,
 				&ta.Action,
 				policy.Spec.Mode == "dryrun",
+				ta.Trigger,
 			)
 
 			// Validate action with safety controller

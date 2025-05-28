@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	kubeskippyv1alpha1 "github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/internal/controller"
@@ -110,6 +111,7 @@ func main() {
 	// Create manager options
 	mgrOpts := ctrl.Options{
 		Scheme:                 scheme,
+		Metrics:                server.Options{BindAddress: cfg.MetricsAddr},
 		HealthProbeBindAddress: cfg.ProbeAddr,
 		LeaderElection:         cfg.EnableLeaderElection,
 		LeaderElectionID:       "kubeskippy.io",
@@ -207,8 +209,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register custom metrics
-	registerMetrics()
+	// Custom metrics are registered in individual controllers
 
 	// Start manager
 	setupLog.Info("Starting manager", "version", "v0.1.0", "dry-run", cfg.Safety.DryRunMode)

@@ -173,6 +173,7 @@ func CreateHealingAction(
 	target client.Object,
 	actionTemplate *v1alpha1.HealingActionTemplate,
 	dryRun bool,
+	triggerType string,
 ) *v1alpha1.HealingAction {
 	now := metav1.Now()
 	gvk := target.GetObjectKind().GroupVersionKind()
@@ -188,6 +189,7 @@ func CreateHealingAction(
 				LabelActionName:  actionTemplate.Name,
 				LabelActionType:  actionTemplate.Type,
 				LabelActionPhase: v1alpha1.HealingActionPhasePending,
+				"trigger-type":   triggerType,
 			},
 			Annotations: map[string]string{
 				AnnotationLastApplied: now.Format(time.RFC3339),

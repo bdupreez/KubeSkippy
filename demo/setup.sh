@@ -258,23 +258,34 @@ if [[ "$1" == "--with-monitoring" ]] || [[ "$WITH_MONITORING" == "true" ]]; then
         sleep 2
     done
     
-    # Import dashboard via API (more reliable than file provisioning)
-    echo "  - Importing KubeSkippy dashboard..."
-    DASHBOARD_JSON=$(kubectl get configmap kubeskippy-dashboard -n monitoring -o jsonpath='{.data.kubeskippy-overview\.json}')
-    DASHBOARD_PAYLOAD="{\"dashboard\": $DASHBOARD_JSON, \"overwrite\": true}"
+    # Import enhanced dashboard via API (more reliable than file provisioning)
+    echo "  - Importing KubeSkippy Enhanced Dashboard..."
+    ENHANCED_DASHBOARD_JSON=$(kubectl get configmap kubeskippy-dashboard -n monitoring -o jsonpath='{.data.kubeskippy-enhanced\.json}')
+    ENHANCED_DASHBOARD_PAYLOAD="{\"dashboard\": $ENHANCED_DASHBOARD_JSON, \"overwrite\": true}"
     
-    # Retry dashboard import up to 3 times
+    # Retry enhanced dashboard import up to 3 times
     for i in {1..3}; do
         if curl -s -X POST -H "Content-Type: application/json" -u admin:admin \
-          -d "$DASHBOARD_PAYLOAD" \
+          -d "$ENHANCED_DASHBOARD_PAYLOAD" \
           http://localhost:3000/api/dashboards/db | grep -q '"status":"success"'; then
-            echo "  ✅ Dashboard imported successfully"
+            echo "  ✅ Enhanced Dashboard imported successfully"
             break
         else
-            echo "  ⚠️ Dashboard import attempt $i failed, retrying..."
+            echo "  ⚠️ Enhanced Dashboard import attempt $i failed, retrying..."
             sleep 2
         fi
     done
+    
+    # Also import original dashboard for comparison
+    echo "  - Importing original KubeSkippy dashboard..."
+    ORIGINAL_DASHBOARD_JSON=$(kubectl get configmap kubeskippy-dashboard -n monitoring -o jsonpath='{.data.kubeskippy-overview\.json}')
+    ORIGINAL_DASHBOARD_PAYLOAD="{\"dashboard\": $ORIGINAL_DASHBOARD_JSON, \"overwrite\": true}"
+    
+    curl -s -X POST -H "Content-Type: application/json" -u admin:admin \
+      -d "$ORIGINAL_DASHBOARD_PAYLOAD" \
+      http://localhost:3000/api/dashboards/db > /dev/null 2>&1 && \
+      echo "  ✅ Original Dashboard also imported" || \
+      echo "  ⚠️ Original Dashboard import failed"
 fi
 
 # Show status

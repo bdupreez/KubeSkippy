@@ -54,7 +54,6 @@ func (m *MockRemediationEngine) GetActionExecutor(actionType string) (ActionExec
 	return nil, nil
 }
 
-
 // reconcileUntilPhase simulates multiple reconciliations until the action reaches the expected phase or a terminal state
 func reconcileUntilPhase(t *testing.T, r *HealingActionReconciler, req reconcile.Request, expectedPhase string, maxIterations int) (*v1alpha1.HealingAction, error) {
 	var lastPhase string
@@ -65,12 +64,12 @@ func reconcileUntilPhase(t *testing.T, r *HealingActionReconciler, req reconcile
 		if err != nil {
 			return nil, err
 		}
-		
+
 		currentPhase := currentAction.Status.Phase
 		if currentPhase == "" {
 			currentPhase = "<empty>"
 		}
-		
+
 		// Reconcile
 		result, err := r.Reconcile(context.Background(), req)
 		if err != nil {
@@ -88,8 +87,8 @@ func reconcileUntilPhase(t *testing.T, r *HealingActionReconciler, req reconcile
 		if newPhase == "" {
 			newPhase = "<empty>"
 		}
-		
-		t.Logf("Iteration %d: %s -> %s (Expected: %s, Result: %+v)", 
+
+		t.Logf("Iteration %d: %s -> %s (Expected: %s, Result: %+v)",
 			i, currentPhase, newPhase, expectedPhase, result)
 
 		// Check if we've reached the expected phase or a terminal state
@@ -99,7 +98,7 @@ func reconcileUntilPhase(t *testing.T, r *HealingActionReconciler, req reconcile
 			action.Status.Phase == v1alpha1.HealingActionPhaseCancelled {
 			return action, nil
 		}
-		
+
 		// If phase hasn't changed after 2 iterations, something's wrong
 		if action.Status.Phase == lastPhase && i > 1 {
 			t.Logf("WARNING: Phase stuck at %s after %d iterations", action.Status.Phase, i+1)

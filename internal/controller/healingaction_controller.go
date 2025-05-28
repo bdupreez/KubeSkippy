@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,10 +15,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
+
+var (
+	healingActionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kubeskippy_healing_actions_total",
+			Help: "Total number of healing actions taken",
+		},
+		[]string{"action_type", "namespace", "status", "trigger_type"},
+	)
+)
+
+func init() {
+	metrics.Registry.MustRegister(healingActionsTotal)
+}
 
 // HealingActionReconciler reconciles a HealingAction object
 type HealingActionReconciler struct {
@@ -197,13 +213,13 @@ func (r *HealingActionReconciler) handleApproved(ctx context.Context, log logr.L
 	action.SetPhase(v1alpha1.HealingActionPhaseInProgress, "Executing", "Starting action execution")
 	action.Status.StartTime = &metav1.Time{Time: time.Now()}
 	action.Status.Attempts = 0
-	
+
 	// Update status first
 	if err := r.Status().Update(ctx, action); err != nil {
 		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
 	}
-	
+
 	// Then update labels
 	if action.Labels == nil {
 		action.Labels = make(map[string]string)
@@ -318,12 +334,32 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 func (r *HealingActionReconciler) completeAction(ctx context.Context, log logr.Logger, action *v1alpha1.HealingAction) (ctrl.Result, error) {
 	now := metav1.Now()
 	action.Status.CompletionTime = &now
-	
+
 	// Ensure labels map exists
 	if action.Labels == nil {
 		action.Labels = make(map[string]string)
 	}
 	action.Labels[LabelActionPhase] = action.Status.Phase
+
+	// Record metrics
+	triggerType := "manual"
+	if action.Labels != nil {
+		if tt, ok := action.Labels["trigger-type"]; ok {
+			triggerType = tt
+		}
+	}
+
+	status := "completed"
+	if action.Status.Phase == v1alpha1.HealingActionPhaseFailed {
+		status = "failed"
+	}
+
+	healingActionsTotal.WithLabelValues(
+		action.Spec.Action.Type,
+		action.Namespace,
+		status,
+		triggerType,
+	).Inc()
 
 	// Create an event
 	eventType := corev1.EventTypeNormal

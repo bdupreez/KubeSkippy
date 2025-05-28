@@ -23,38 +23,50 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 - Password: `admin`
 
 ### 3. Navigate to KubeSkippy Dashboard
-- Method 1: Click "Dashboards" → "KubeSkippy Healing Overview"
-- Method 2: Direct URL: http://localhost:3000/d/kubeskippy-overview
+- Method 1: Click "Dashboards" → "KubeSkippy Demo Overview"
+- Method 2: Direct URL: http://localhost:3000/d/kubeskippy-demo
 
 ## Dashboard Panels Explained
 
 ### Overview Metrics (Top Row)
-1. **Healing Actions Over Time**
-   - Shows total healing actions in the last 5 minutes
-   - Color coding: Green (0-5), Yellow (5-10), Red (>10)
+1. **Total Demo Pods**
+   - Shows total demo application pods
+   - Real-time count from Kubernetes
 
-2. **Success Rate**
-   - Percentage of successful healing actions
-   - Thresholds: Red (<70%), Yellow (70-90%), Green (>90%)
+2. **Unhealthy Pods**
+   - Count of pods not in Running state
+   - Color coding: Green (0), Yellow (1-2), Red (3+)
 
-3. **Active Policies**
-   - Count of unique healing policies that have been evaluated
+3. **AI-Driven Healing Actions**
+   - Total count of AI-triggered healing actions
+   - Shows 0 until AI analysis generates actions
 
-4. **Policy Evaluations**
-   - Total number of policy evaluations in the last 5 minutes
+4. **AI Backend Status**
+   - Status of Ollama/AI backend service
+   - Online/Offline indicator with color coding
 
-### Time Series Graphs
+### Container Details Section
+#### Pod Status and Restart Monitoring
+- **Pod Status Distribution**: Pie chart showing pod phases
+- **Pod Restart Monitoring**: Table with pod names, status, and restart counts
+- Real-time view of application health and stability
 
-#### Healing Actions Timeline
-- Line graph showing healing actions per minute
-- Grouped by action type (restart, scale, patch, delete)
-- Useful for identifying patterns and spikes
+### Resource Usage Monitoring (like monitor.sh)
+#### CPU & Memory Usage
+- **Pod CPU Usage %**: Time series graph of CPU utilization per pod
+- **Pod Memory Usage**: Time series graph of memory consumption per pod
+- Matches the comprehensive monitoring from the ./monitor.sh script
 
-#### Target Application Health
-- Dual-axis graph showing:
-  - CPU usage rate per pod
-  - Memory usage in MB per pod
-- Helps correlate healing actions with resource consumption
+### 🤖 AI Analysis & Healing Section
+#### AI Healing Activity Timeline
+- **Real-time AI Actions**: Rate of AI-triggered healing actions per second
+- **Pending/Completed Counters**: Track AI action lifecycle
+- **Time series visualization**: See AI activity patterns over time
+
+#### AI Healing Actions - Recent Activity
+- **Table view**: Recent AI-driven healing actions with details
+- **Action types**: restart, scale, delete, patch operations
+- **Status tracking**: pending, completed, failed states
 
 ### Summary Visualizations
 
@@ -91,9 +103,10 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 1. Click panel title → Edit
 2. Modify the PromQL query
 3. Common KubeSkippy metrics:
-   - `kubeskippy_healing_actions_total`
+   - `kubeskippy_healing_actions_total{trigger_type="ai-driven"}`
    - `kubeskippy_policy_evaluations_total`
    - `kubeskippy_healing_duration_seconds`
+   - `kube_pod_status_phase{namespace="demo-apps"}`
 
 ### Creating Alerts
 1. Navigate to panel → Edit → Alert
@@ -141,15 +154,19 @@ kubectl port-forward -n monitoring svc/prometheus 9090:9090
 
 ### Example PromQL Queries
 ```promql
-# Healing actions by type in last hour
-sum by (action_type) (increase(kubeskippy_healing_actions_total[1h]))
+# AI-driven healing actions by type in last hour
+sum by (action_type) (increase(kubeskippy_healing_actions_total{trigger_type=~".*ai.*"}[1h]))
 
-# Average healing duration
-avg(kubeskippy_healing_duration_seconds)
+# AI vs Traditional healing action ratio
+sum(kubeskippy_healing_actions_total{trigger_type=~".*ai.*"}) /
+sum(kubeskippy_healing_actions_total)
 
-# Failed actions ratio
-sum(rate(kubeskippy_healing_actions_total{status="failed"}[5m])) / 
-sum(rate(kubeskippy_healing_actions_total[5m]))
+# Pod health monitoring (like monitor.sh)
+count(kube_pod_status_phase{namespace="demo-apps", phase="Running"}) /
+count(kube_pod_status_phase{namespace="demo-apps"})
+
+# AI backend availability
+up{job="ollama"} or kube_pod_status_phase{namespace="demo-apps", pod=~"ollama.*", phase="Running"}
 ```
 
 ## Best Practices

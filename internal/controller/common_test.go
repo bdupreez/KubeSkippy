@@ -351,7 +351,7 @@ func TestCreateHealingAction(t *testing.T) {
 		RequiresApproval: false,
 	}
 
-	action := CreateHealingAction(policy, target, actionTemplate, false)
+	action := CreateHealingAction(policy, target, actionTemplate, false, "test-trigger")
 
 	assert.NotNil(t, action)
 	assert.Equal(t, "default", action.Namespace)
