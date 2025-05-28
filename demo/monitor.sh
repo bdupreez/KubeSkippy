@@ -96,6 +96,37 @@ while true; do
         kubectl logs -n kubeskippy-system pod/$operator_pod --tail=3 | sed 's/^/   /'
     fi
     
+    # Monitoring Status
+    monitoring_ns=$(kubectl get namespace monitoring 2>/dev/null)
+    if [[ -n "$monitoring_ns" ]]; then
+        echo -e "\n${YELLOW}📊 Monitoring Status:${NC}"
+        
+        # Prometheus status
+        prom_pod=$(kubectl get pods -n monitoring -l app=prometheus --no-headers 2>/dev/null | awk '{print $1}')
+        if [[ -n "$prom_pod" ]]; then
+            prom_status=$(kubectl get pods -n monitoring -l app=prometheus --no-headers 2>/dev/null | awk '{print $3}')
+            if [[ "$prom_status" == "Running" ]]; then
+                echo -e "   ${GREEN}✓${NC} Prometheus: $prom_pod ($prom_status)"
+                echo -e "     Access: kubectl port-forward -n monitoring svc/prometheus 9090:9090"
+            else
+                echo -e "   ${RED}✗${NC} Prometheus: $prom_pod ($prom_status)"
+            fi
+        fi
+        
+        # Grafana status
+        grafana_pod=$(kubectl get pods -n monitoring -l app=grafana --no-headers 2>/dev/null | awk '{print $1}')
+        if [[ -n "$grafana_pod" ]]; then
+            grafana_status=$(kubectl get pods -n monitoring -l app=grafana --no-headers 2>/dev/null | awk '{print $3}')
+            if [[ "$grafana_status" == "Running" ]]; then
+                echo -e "   ${GREEN}✓${NC} Grafana: $grafana_pod ($grafana_status)"
+                echo -e "     Access: kubectl port-forward -n monitoring svc/grafana 3000:3000"
+                echo -e "     Login: admin/admin"
+            else
+                echo -e "   ${RED}✗${NC} Grafana: $grafana_pod ($grafana_status)"
+            fi
+        fi
+    fi
+    
     echo -e "\n${BLUE}Press Ctrl+C to exit${NC}"
     sleep 5
 done

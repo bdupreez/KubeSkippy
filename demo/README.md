@@ -11,10 +11,13 @@ This demo showcases KubeSkippy's autonomous healing capabilities by simulating v
 # 2. (Optional) Setup with Prometheus for advanced metrics
 ./setup.sh --with-prometheus
 
-# 3. Watch healing in action (new terminal)
+# 3. (Optional) Setup with full monitoring stack (Prometheus + Grafana)
+./setup.sh --with-monitoring
+
+# 4. Watch healing in action (new terminal)
 ./monitor.sh
 
-# 4. Quick demo with all features
+# 5. Quick demo with all features
 ./quick-demo.sh
 ```
 
@@ -61,7 +64,7 @@ The demo includes four problematic applications that trigger different healing p
 - **Triggers**: PromQL queries for advanced metrics
 - **Metrics**: HTTP error rates, P99 latency, custom app metrics
 - **Actions**: Context-aware healing based on real application behavior
-- **Mode**: Automatic (requires --with-prometheus setup)
+- **Mode**: Automatic (requires --with-prometheus or --with-monitoring setup)
 
 ## Managing AI-Driven Healing
 
@@ -95,6 +98,49 @@ This shows:
 - Healing actions being created
 - Recent events
 - Operator logs
+- Monitoring stack status (Prometheus/Grafana)
+
+### Visual Monitoring with Grafana (Optional)
+If you deployed with `--with-monitoring`, access Grafana for visual dashboards:
+
+```bash
+# 1. Start port forwarding (if not already running)
+kubectl port-forward -n monitoring svc/grafana 3000:3000
+
+# 2. Check if port-forward is active
+ps aux | grep "port-forward.*grafana"
+
+# 3. Access Grafana in your browser
+http://localhost:3000
+
+# 4. Login credentials
+Username: admin
+Password: admin
+
+# 5. Find the dashboard
+# Option A: Navigate to Dashboards → KubeSkippy Healing Overview
+# Option B: Direct link: http://localhost:3000/d/kubeskippy-overview
+```
+
+The KubeSkippy dashboard includes:
+- **Healing Actions Over Time**: Real-time count of healing actions
+- **Success Rate**: Percentage of successful vs failed healing actions
+- **Active Policies**: Number of healing policies currently active
+- **Policy Evaluations**: Total evaluation count over time
+- **Healing Actions Timeline**: Time-series graph of actions by type
+- **Target Application Health**: CPU and memory metrics for demo apps
+- **Action Results by Type**: Pie chart of success/failure distribution
+- **Recent Healing Actions**: Log view of recent healing activity
+
+### Access Prometheus (Optional)
+For raw metrics and custom queries:
+
+```bash
+# Access Prometheus UI
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+
+# Open http://localhost:9090 in browser
+```
 
 ### Check Healing Actions
 ```bash
@@ -177,6 +223,24 @@ This will:
 - Delete the Kind cluster
 
 ## Troubleshooting
+
+### Grafana Dashboard Issues
+```bash
+# Dashboard not loading
+kubectl logs -n monitoring deployment/grafana | grep -i error
+
+# Port forwarding not working
+# Kill existing port-forward
+pkill -f "port-forward.*grafana"
+# Restart it
+kubectl port-forward -n monitoring svc/grafana 3000:3000
+
+# Dashboard shows "No Data"
+# Check Prometheus is running
+kubectl get pods -n monitoring
+# Check datasource connectivity in Grafana UI
+# Settings → Data Sources → Prometheus → Test
+```
 
 ### No Healing Actions Created
 ```bash

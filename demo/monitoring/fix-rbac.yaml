@@ -1,0 +1,31 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kubeskippy-leader-election-role
+  namespace: kubeskippy-system
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - patch
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubeskippy-leader-election-rolebinding
+  namespace: kubeskippy-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kubeskippy-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: kubeskippy-controller-manager
+  namespace: kubeskippy-system

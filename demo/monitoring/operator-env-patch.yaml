@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeskippy-controller-manager
+  namespace: kubeskippy-system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus.monitoring:9090"

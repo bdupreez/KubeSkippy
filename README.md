@@ -157,6 +157,8 @@ helm install kubeskippy kubeskippy/kubeskippy \
 - [**Demo Walkthrough**](demo/README.md) - See all features in action
 - [**Architecture Overview**](docs/architecture-overview.md) - Technical deep dive
 - [**AI-Driven Healing**](docs/ai-driven-healing-explained.md) - How AI integration works
+- [**Prometheus Integration**](docs/prometheus-integration-guide.md) - Metrics and monitoring setup
+- [**Grafana Dashboard Guide**](docs/grafana-dashboard-guide.md) - Visual monitoring with Grafana
 - [**Operator Design**](OPERATOR_README.md) - Implementation details
 
 ## 🔄 How It Works

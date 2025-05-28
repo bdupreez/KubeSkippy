@@ -16,16 +16,9 @@ else
     echo "⚠️  Cluster ${CLUSTER_NAME} not found."
 fi
 
-# Clean up Docker images (optional)
+# Keep Docker images for faster subsequent runs
 echo ""
-read -p "Delete local Docker images? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "🗑️  Removing Docker images..."
-    docker rmi kubeskippy:latest || true
-    docker rmi ollama/ollama:latest || true
-    echo "✅ Docker images removed!"
-fi
+echo "ℹ️  Keeping Docker images for faster subsequent runs."
 
 echo ""
 echo "✅ Cleanup complete!"

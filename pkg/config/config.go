@@ -219,7 +219,7 @@ func NewDefaultConfig() *Config {
 		EnableLeaderElection: true,
 		WatchNamespace:       "",
 		Metrics: MetricsConfig{
-			PrometheusURL:        "http://prometheus:9090",
+			PrometheusURL:        "http://prometheus.monitoring:9090",
 			MetricsServerEnabled: true,
 			CollectionInterval:   30 * time.Second,
 			RetentionPeriod:      24 * time.Hour,

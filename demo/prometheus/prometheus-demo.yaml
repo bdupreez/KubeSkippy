@@ -42,6 +42,27 @@ data:
         action: replace
         target_label: kubernetes_pod_name
     
+    # Scrape kube-state-metrics
+    - job_name: 'kube-state-metrics'
+      static_configs:
+      - targets: ['kube-state-metrics.kube-system:8080']
+    
+    # Scrape KubeSkippy operator metrics
+    - job_name: 'kubeskippy'
+      kubernetes_sd_configs:
+      - role: endpoints
+        namespaces:
+          names:
+          - kubeskippy-system
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_name]
+        action: keep
+        regex: kubeskippy-controller-metrics
+      - source_labels: [__address__]
+        target_label: __address__
+        regex: (.+)
+        replacement: $1
+    
     # Scrape demo apps that expose metrics
     - job_name: 'demo-apps'
       kubernetes_sd_configs:
