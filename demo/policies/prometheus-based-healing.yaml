@@ -64,7 +64,7 @@ spec:
         and 
         sum(rate(http_requests_total{job="flaky-web-app"}[5m])) > 100
       threshold: 1  # Boolean result
-      operator: "=="
+      operator: ">="
       duration: "2m"
     cooldownPeriod: "10m"
 

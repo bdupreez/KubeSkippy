@@ -62,7 +62,10 @@ data:
       "links": [],
       "panels": [
         {
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -107,7 +110,10 @@ data:
           "pluginVersion": "10.2.0",
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
               "expr": "count(kube_pod_info{namespace=\"demo-apps\"})",
               "refId": "A"
             }
@@ -116,7 +122,10 @@ data:
           "type": "stat"
         },
         {
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -165,7 +174,10 @@ data:
           "pluginVersion": "10.2.0",
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
               "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"demo-apps\"})",
               "refId": "A"
             }
@@ -174,7 +186,10 @@ data:
           "type": "stat"
         },
         {
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -240,7 +255,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
               "expr": "sum(rate(kube_pod_container_status_restarts_total{namespace=\"demo-apps\"}[5m])) by (pod)",
               "legendFormat": "{{pod}}",
               "refId": "A"
@@ -250,7 +268,10 @@ data:
           "type": "timeseries"
         },
         {
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -293,7 +314,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
               "expr": "sum by (phase) (kube_pod_status_phase{namespace=\"demo-apps\"})",
               "legendFormat": "{{phase}}",
               "refId": "A"
@@ -303,7 +327,10 @@ data:
           "type": "piechart"
         },
         {
-          "datasource": "Prometheus",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -370,7 +397,10 @@ data:
           },
           "targets": [
             {
-              "datasource": "Prometheus",
+              "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
               "expr": "100 * (rate(container_cpu_usage_seconds_total{namespace=\"demo-apps\"}[5m]))",
               "legendFormat": "{{pod}}",
               "refId": "A"
@@ -467,6 +497,18 @@ spec:
           value: admin
         - name: GF_INSTALL_PLUGINS
           value: ""
+        - name: GF_FEATURE_TOGGLES_ENABLE
+          value: ""
+        - name: GF_LOG_LEVEL
+          value: "info"
+        - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+          value: "/var/lib/grafana/dashboards/kubeskippy-overview.json"
+        - name: GF_PROVISIONING_DATASOURCES_PATH
+          value: "/etc/grafana/provisioning/datasources"
+        - name: GF_PROVISIONING_DASHBOARDS_PATH
+          value: "/etc/grafana/provisioning/dashboards"
+        - name: GF_PATHS_PROVISIONING
+          value: "/etc/grafana/provisioning"
       volumes:
       - name: grafana-pv
         emptyDir: {}
