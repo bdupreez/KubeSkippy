@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	kubeskippyv1alpha1 "github.com/kubeskippy/kubeskippy/api/v1alpha1"
+	"github.com/kubeskippy/kubeskippy/internal/ai"
 	"github.com/kubeskippy/kubeskippy/internal/controller"
 	kubemetrics "github.com/kubeskippy/kubeskippy/internal/metrics"
 	"github.com/kubeskippy/kubeskippy/internal/remediation"
@@ -168,9 +169,23 @@ func main() {
 	actionRecorder := remediation.NewInMemoryActionRecorder(24 * time.Hour)
 	actionRecorder.StartCleanupLoop(ctx, 1*time.Hour)
 	remediationEngine := remediation.NewEngine(mgr.GetClient(), actionRecorder)
+	remediationEngine.StartCleanupRoutine(ctx)
 
-	// TODO: Create actual implementation for AI analyzer
+	// Initialize AI analyzer with fallback
 	var aiAnalyzer controller.AIAnalyzer
+	if cfg.AI.Provider != "" {
+		analyzer, err := ai.NewAnalyzer(cfg.AI)
+		if err != nil {
+			setupLog.Error(err, "Failed to create AI analyzer, disabling AI features")
+			aiAnalyzer = &ai.NoOpAnalyzer{}
+		} else {
+			aiAnalyzer = analyzer
+			setupLog.Info("AI analyzer initialized successfully", "provider", cfg.AI.Provider)
+		}
+	} else {
+		aiAnalyzer = &ai.NoOpAnalyzer{}
+		setupLog.Info("AI features disabled - no provider configured")
+	}
 
 	setupLog.Info("Safety controller, metrics collector, and remediation engine initialized")
 
@@ -209,7 +224,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Custom metrics are registered in individual controllers
+	// Register custom Prometheus metrics
+	registerMetrics()
 
 	// Start manager
 	setupLog.Info("Starting manager", "version", "v0.1.0", "dry-run", cfg.Safety.DryRunMode)

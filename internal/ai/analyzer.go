@@ -41,6 +41,14 @@ type PromptTemplates struct {
 	RootCauseAnalysis string
 }
 
+// NoOpAnalyzer provides a safe fallback when AI is disabled or unavailable
+type NoOpAnalyzer struct{}
+
+// NewNoOpAnalyzer creates a new no-op AI analyzer
+func NewNoOpAnalyzer() *NoOpAnalyzer {
+	return &NoOpAnalyzer{}
+}
+
 // NewAnalyzer creates a new AI analyzer
 func NewAnalyzer(config config.AIConfig) (*Analyzer, error) {
 	var client AIClient
@@ -480,3 +488,24 @@ Identify:
 2. Contributing factors
 3. Chain of events
 4. Remediation steps`
+
+// NoOpAnalyzer implementations
+func (n *NoOpAnalyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.ClusterMetrics, issues []controller.Issue) (*controller.AIAnalysis, error) {
+	return &controller.AIAnalysis{
+		Timestamp:       time.Now(),
+		Summary:         "AI analysis disabled",
+		Issues:          []controller.AIIssue{},
+		Recommendations: []controller.AIRecommendation{},
+		Confidence:      0.0,
+		ModelVersion:    "no-op",
+	}, nil
+}
+
+func (n *NoOpAnalyzer) ValidateRecommendation(ctx context.Context, recommendation *controller.AIRecommendation) error {
+	// No-op analyzer always approves recommendations as it provides none
+	return nil
+}
+
+func (n *NoOpAnalyzer) GetModel() string {
+	return "no-op-analyzer"
+}

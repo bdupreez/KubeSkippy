@@ -26,8 +26,7 @@ type Controller struct {
 	auditLogger AuditLogger
 
 	// Circuit breakers per policy
-	circuitBreakers map[string]*controller.CircuitBreaker
-	cbMutex         sync.RWMutex
+	circuitBreakers sync.Map // map[string]*controller.CircuitBreaker
 }
 
 // NewController creates a new safety controller
@@ -41,11 +40,11 @@ func NewController(client client.Client, config config.SafetyConfig, store Actio
 	}
 
 	return &Controller{
-		client:          client,
-		config:          config,
-		store:           store,
-		auditLogger:     auditLogger,
-		circuitBreakers: make(map[string]*controller.CircuitBreaker),
+		client:      client,
+		config:      config,
+		store:       store,
+		auditLogger: auditLogger,
+		// circuitBreakers is a sync.Map, no need to initialize
 	}
 }
 
@@ -310,31 +309,23 @@ func (c *Controller) validateActionType(action *v1alpha1.HealingAction, target r
 
 // getOrCreateCircuitBreaker gets or creates a circuit breaker for a policy
 func (c *Controller) getOrCreateCircuitBreaker(policyName string) *controller.CircuitBreaker {
-	c.cbMutex.RLock()
-	cb, exists := c.circuitBreakers[policyName]
-	c.cbMutex.RUnlock()
-
-	if exists {
-		return cb
-	}
-
-	c.cbMutex.Lock()
-	defer c.cbMutex.Unlock()
-
-	// Double-check after acquiring write lock
-	if cb, exists = c.circuitBreakers[policyName]; exists {
-		return cb
+	// Try to load existing circuit breaker
+	if value, exists := c.circuitBreakers.Load(policyName); exists {
+		return value.(*controller.CircuitBreaker)
 	}
 
 	// Create new circuit breaker
-	cb = controller.NewCircuitBreaker(
+	cb := controller.NewCircuitBreaker(
 		c.config.CircuitBreaker.FailureThreshold,
 		c.config.CircuitBreaker.SuccessThreshold,
 		c.config.CircuitBreaker.Timeout,
 	)
-	c.circuitBreakers[policyName] = cb
 
-	return cb
+	// Try to store it atomically
+	actual, _ := c.circuitBreakers.LoadOrStore(policyName, cb)
+	
+	// Return the actual value (either the new one we stored, or an existing one)
+	return actual.(*controller.CircuitBreaker)
 }
 
 // getPolicyKey generates a unique key for a policy

@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -10,6 +11,19 @@ import (
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+var (
+	// validLabelNameRegex validates Prometheus label names
+	validLabelNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	
+	// labelValueEscaper escapes special characters in label values
+	labelValueEscaper = strings.NewReplacer(
+		`"`, `\"`,    // Escape quotes
+		`\`, `\\`,    // Escape backslashes
+		"\n", `\n`,   // Escape newlines
+		"\t", `\t`,   // Escape tabs
+	)
 )
 
 // PrometheusClient wraps Prometheus API client
@@ -166,11 +180,20 @@ var CommonQueries = map[string]string{
 	"container_cpu_throttled_percent": `100 * sum(rate(container_cpu_cfs_throttled_periods_total[5m])) / sum(rate(container_cpu_cfs_periods_total[5m]))`,
 }
 
-// BuildQuery helps construct common PromQL queries
-func BuildQuery(metricType string, labels map[string]string) string {
-	// This is a simplified query builder
-	// In production, you'd want more sophisticated query construction
+// validateLabelName checks if a label name is valid for Prometheus
+func validateLabelName(name string) bool {
+	return validLabelNameRegex.MatchString(name)
+}
 
+// escapeLabelValue safely escapes a label value for use in PromQL
+func escapeLabelValue(value string) string {
+	return labelValueEscaper.Replace(value)
+}
+
+// BuildQuery helps construct common PromQL queries safely
+func BuildQuery(metricType string, labels map[string]string) string {
+	// This is a simplified query builder with security validation
+	
 	baseQuery := ""
 	switch metricType {
 	case "pod_cpu":
@@ -183,19 +206,28 @@ func BuildQuery(metricType string, labels map[string]string) string {
 		return metricType // Assume it's already a PromQL query
 	}
 
-	// Add label filters
+	// Add label filters with proper validation and escaping
 	if len(labels) > 0 {
-		filters := ""
+		var filters []string
 		for k, v := range labels {
-			if filters != "" {
-				filters += ","
+			// Validate label name
+			if !validateLabelName(k) {
+				log.Log.Info("Invalid label name, skipping", "label", k)
+				continue
 			}
-			filters += fmt.Sprintf(`%s="%s"`, k, v)
+			
+			// Escape label value and add to filters
+			escapedValue := escapeLabelValue(v)
+			filters = append(filters, fmt.Sprintf(`%s="%s"`, k, escapedValue))
 		}
-		// Insert filters into the query
-		idx := strings.Index(baseQuery, "}")
-		if idx > 0 {
-			baseQuery = baseQuery[:idx] + "," + filters + baseQuery[idx:]
+		
+		if len(filters) > 0 {
+			filterStr := strings.Join(filters, ",")
+			// Insert filters into the query safely
+			idx := strings.Index(baseQuery, "}")
+			if idx > 0 {
+				baseQuery = baseQuery[:idx] + "," + filterStr + baseQuery[idx:]
+			}
 		}
 	}
 

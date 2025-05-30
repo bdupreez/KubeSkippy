@@ -33,6 +33,7 @@ type Engine struct {
 type ActionContext struct {
 	Action      *v1alpha1.HealingAction
 	StartTime   time.Time
+	ExpiresAt   time.Time
 	CancelFunc  context.CancelFunc
 	OriginalObj runtime.Object
 }
@@ -356,9 +357,13 @@ func (e *Engine) trackAction(action *v1alpha1.HealingAction) *ActionContext {
 	e.actionsMu.Lock()
 	defer e.actionsMu.Unlock()
 
+	// Clean up expired actions first
+	e.cleanupExpiredActionsLocked()
+
 	ctx := &ActionContext{
 		Action:    action,
 		StartTime: time.Now(),
+		ExpiresAt: time.Now().Add(1 * time.Hour), // Add expiration
 	}
 
 	e.activeActions[action.Name] = ctx
@@ -407,4 +412,37 @@ func (e *Engine) CancelAction(actionName string) error {
 	}
 
 	return fmt.Errorf("action %s has no cancel function", actionName)
+}
+
+// cleanupExpiredActionsLocked removes expired actions from tracking
+// Must be called with actionsMu write lock held
+func (e *Engine) cleanupExpiredActionsLocked() {
+	now := time.Now()
+	for name, ctx := range e.activeActions {
+		if ctx.ExpiresAt.Before(now) {
+			if ctx.CancelFunc != nil {
+				ctx.CancelFunc()
+			}
+			delete(e.activeActions, name)
+		}
+	}
+}
+
+// StartCleanupRoutine starts a periodic cleanup routine for expired actions
+func (e *Engine) StartCleanupRoutine(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				e.actionsMu.Lock()
+				e.cleanupExpiredActionsLocked()
+				e.actionsMu.Unlock()
+			}
+		}
+	}()
 }
