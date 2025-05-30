@@ -213,7 +213,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
-              "expr": "up{job=\"ollama\"} or kube_pod_status_phase{namespace=\"demo-apps\", pod=~\"ollama.*\", phase=\"Running\"}",
+              "expr": "sum(kube_pod_container_status_running{namespace=\"kubeskippy-system\", pod=~\"ollama-.*\"}) or vector(0)",
               "legendFormat": "AI Backend",
               "refId": "A"
             }

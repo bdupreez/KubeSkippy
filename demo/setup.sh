@@ -36,6 +36,11 @@ echo "📦 Installing CRDs..."
 kubectl apply -f "$SCRIPT_DIR/../config/crd/bases/"
 echo "✅ CRDs installed!"
 
+# Create namespace first
+echo ""
+echo "📁 Creating namespace..."
+kubectl create namespace ${NAMESPACE} || true
+
 # Start parallel deployment of independent components
 echo ""
 echo "🚀 Starting parallel deployment of components..."
@@ -64,7 +69,10 @@ kubectl patch deployment metrics-server -n kube-system --type='json' -p='[
 
 # Deploy Ollama (independent, slow)
 echo "🤖 Deploying Ollama..."
-kubectl apply -f "$SCRIPT_DIR/../tests/ollama-deployment.yaml" > /dev/null
+kubectl apply -f "$SCRIPT_DIR/../tests/ollama-deployment.yaml" > /dev/null || {
+    echo "  ❌ Failed to deploy Ollama"
+    exit 1
+}
 
 echo ""
 echo "⏳ Waiting for components to be ready..."
@@ -89,13 +97,12 @@ kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system 
 
 # Start Ollama readiness check in background (we don't need to block on it)
 echo "  - Starting Ollama readiness check (background)..."
-kubectl wait --for=condition=ready pod -l app=ollama -n ai-nanny-system --timeout=300s > /dev/null 2>&1 && echo "  ✅ Ollama ready" || echo "  ⚠️  Ollama timeout" &
+kubectl wait --for=condition=ready pod -l app=ollama -n ${NAMESPACE} --timeout=300s > /dev/null 2>&1 && echo "  ✅ Ollama ready" || echo "  ⚠️  Ollama timeout" &
 OLLAMA_WAIT_PID=$!
 
 # Deploy operator
 echo ""
 echo "🚀 Deploying KubeSkippy operator..."
-kubectl create namespace ${NAMESPACE} || true
 
 # Build the kustomized operator manifests and deploy
 echo "  - Building operator manifests..."
@@ -115,7 +122,6 @@ kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n ${
     kubectl get pods -n ${NAMESPACE}
     kubectl describe pods -n ${NAMESPACE} | grep -A 5 "Events:"
 }
-
 # Apply RBAC fix for leader election
 echo "  - Applying RBAC fixes..."
 kubectl apply -f "$SCRIPT_DIR/monitoring/fix-rbac.yaml"
@@ -131,7 +137,7 @@ kubectl wait --for=condition=ready pod -l control-plane=controller-manager -n ${
     echo "⚠️  Operator restart taking longer than expected, continuing..."
 }
 
-echo "✅ Operator deployed!"
+echo "✅ Operator fully deployed with RBAC!"
 
 # Create demo namespace
 echo ""
@@ -143,12 +149,16 @@ echo "✅ Demo namespace created!"
 echo ""
 echo "🎯 Deploying demo applications..."
 cd "$SCRIPT_DIR"
-for app in apps/*.yaml; do
-    if [[ -f "$app" ]]; then
-        echo "  - Deploying $(basename $app)..."
-        kubectl apply -f "$app"
-    fi
-done
+if [ -d "apps" ]; then
+    echo "  - Deploying all apps..."
+    kubectl apply -f apps/ || {
+        echo "  ❌ Failed to deploy apps, exiting..."
+        exit 1
+    }
+else
+    echo "  ❌ Apps directory not found!"
+    exit 1
+fi
 echo "✅ Demo applications deployed!"
 
 # Apply healing policies
@@ -213,13 +223,23 @@ echo ""
 echo "⏳ Finalizing setup..."
 echo "  - Waiting for all background processes to complete..."
 
-# Wait for Ollama if it's still running
+# Wait for Ollama if it's still running (with timeout)
 if ps -p $OLLAMA_WAIT_PID > /dev/null 2>&1; then
-    wait $OLLAMA_WAIT_PID
+    # Wait up to 30 seconds for Ollama
+    for i in {1..30}; do
+        if ! ps -p $OLLAMA_WAIT_PID > /dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    # Kill if still running
+    if ps -p $OLLAMA_WAIT_PID > /dev/null 2>&1; then
+        kill $OLLAMA_WAIT_PID 2>/dev/null || true
+    fi
 fi
 
 # Give background monitoring waits a moment to complete
-sleep 5
+sleep 2
 
 # Final status check
 echo ""
@@ -258,34 +278,17 @@ if [[ "$1" == "--with-monitoring" ]] || [[ "$WITH_MONITORING" == "true" ]]; then
         sleep 2
     done
     
-    # Import enhanced dashboard via API (more reliable than file provisioning)
-    echo "  - Importing KubeSkippy Enhanced Dashboard..."
-    ENHANCED_DASHBOARD_JSON=$(kubectl get configmap kubeskippy-dashboard -n monitoring -o jsonpath='{.data.kubeskippy-enhanced\.json}')
-    ENHANCED_DASHBOARD_PAYLOAD="{\"dashboard\": $ENHANCED_DASHBOARD_JSON, \"overwrite\": true}"
+    # Check if dashboards are already loaded via ConfigMap provisioning
+    echo "  - Checking dashboard status..."
+    DASHBOARD_COUNT=$(curl -s -u admin:admin 'http://localhost:3000/api/search?type=dash-db' | jq '. | length' 2>/dev/null || echo 0)
     
-    # Retry enhanced dashboard import up to 3 times
-    for i in {1..3}; do
-        if curl -s -X POST -H "Content-Type: application/json" -u admin:admin \
-          -d "$ENHANCED_DASHBOARD_PAYLOAD" \
-          http://localhost:3000/api/dashboards/db | grep -q '"status":"success"'; then
-            echo "  ✅ Enhanced Dashboard imported successfully"
-            break
-        else
-            echo "  ⚠️ Enhanced Dashboard import attempt $i failed, retrying..."
-            sleep 2
-        fi
-    done
-    
-    # Also import original dashboard for comparison
-    echo "  - Importing original KubeSkippy dashboard..."
-    ORIGINAL_DASHBOARD_JSON=$(kubectl get configmap kubeskippy-dashboard -n monitoring -o jsonpath='{.data.kubeskippy-overview\.json}')
-    ORIGINAL_DASHBOARD_PAYLOAD="{\"dashboard\": $ORIGINAL_DASHBOARD_JSON, \"overwrite\": true}"
-    
-    curl -s -X POST -H "Content-Type: application/json" -u admin:admin \
-      -d "$ORIGINAL_DASHBOARD_PAYLOAD" \
-      http://localhost:3000/api/dashboards/db > /dev/null 2>&1 && \
-      echo "  ✅ Original Dashboard also imported" || \
-      echo "  ⚠️ Original Dashboard import failed"
+    if [ "${DASHBOARD_COUNT:-0}" -ge 2 ]; then
+        echo "  ✅ Dashboards already provisioned via ConfigMap"
+        echo "  - KubeSkippy Enhanced Dashboard: http://localhost:3000/d/kubeskippy-enhanced"
+        echo "  - KubeSkippy Demo Overview: http://localhost:3000/d/kubeskippy-demo"
+    else
+        echo "  ⚠️ Dashboards not found, manual import may be needed"
+    fi
 fi
 
 # Show status
@@ -327,12 +330,12 @@ fi
 echo ""
 echo "To clean up: ./cleanup.sh"
 
+# Function to fix Grafana dashboard (only used if monitoring is deployed)
 fix_grafana_dashboard() {
-  echo "🔄 Fixing Grafana dashboard provisioning..."
-  kubectl -n monitoring apply -f grafana/grafana-demo.yaml
-  kubectl -n monitoring delete pod -l app.kubernetes.io/name=grafana
-  echo "✅ Grafana dashboard fix applied!"
+  if kubectl get ns monitoring >/dev/null 2>&1; then
+    echo "🔄 Fixing Grafana dashboard provisioning..."
+    kubectl -n monitoring apply -f grafana/grafana-demo.yaml
+    kubectl -n monitoring delete pod -l app.kubernetes.io/name=grafana
+    echo "✅ Grafana dashboard fix applied!"
+  fi
 }
-
-# Fix Grafana dashboard provisioning
-fix_grafana_dashboard
