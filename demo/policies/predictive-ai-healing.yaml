@@ -1,0 +1,249 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: predictive-ai-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Predictive AI healing with trend analysis and early intervention"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "Advanced predictive analysis to prevent failures before they occur"
+    kubeskippy.io/prediction-horizon: "5m"
+    kubeskippy.io/intervention-threshold: "70%"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: ai-target
+        operator: In
+        values: ["true"]
+      - key: pattern
+        operator: In
+        values: ["predictive"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  # Predictive Memory Trend Analysis
+  - name: predictive-memory-trend
+    type: metric
+    metricTrigger:
+      query: "memory_usage_trend_5m"  # 5-minute trend analysis
+      threshold: 60  # Intervene at 60% before reaching 85% failure point
+      operator: ">"
+      duration: "2m"  # Trend must persist for 2 minutes
+    cooldownPeriod: "10m"
+    annotations:
+      prediction-type: "memory-degradation"
+      confidence-required: "high"
+      early-warning: "true"
+  
+  # Predictive CPU Pattern Detection
+  - name: predictive-cpu-pattern
+    type: metric
+    metricTrigger:
+      query: "cpu_oscillation_amplitude_trend"
+      threshold: 70  # Detect escalating CPU patterns
+      operator: ">"
+      duration: "3m"
+    cooldownPeriod: "8m"
+    annotations:
+      prediction-type: "cpu-escalation"
+      confidence-required: "medium"
+      pattern-analysis: "oscillation-trend"
+  
+  # Predictive Network Degradation
+  - name: predictive-network-degradation
+    type: metric
+    metricTrigger:
+      query: "error_rate_trend_3m"
+      threshold: 40  # Intervene when error rate trending up from 40%
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "6m"
+    annotations:
+      prediction-type: "network-degradation"
+      confidence-required: "high"
+      service-impact: "critical"
+  
+  # Multi-Metric Correlation Trigger
+  - name: predictive-multi-metric-correlation
+    type: metric
+    metricTrigger:
+      query: "correlation_risk_score"  # AI-calculated composite risk
+      threshold: 75  # High correlation score indicates imminent failure
+      operator: ">"
+      duration: "1m"
+    cooldownPeriod: "15m"
+    annotations:
+      prediction-type: "multi-dimensional"
+      confidence-required: "very-high"
+      correlation-metrics: "memory,cpu,network,restart-count"
+  
+  # Early Warning System Trigger
+  - name: early-warning-cascade
+    type: event
+    eventTrigger:
+      reason: "EarlyWarning"
+      type: "Warning"
+      count: 2
+      window: "5m"
+    cooldownPeriod: "5m"
+    annotations:
+      prediction-type: "cascade-failure"
+      prevention-priority: "critical"
+  
+  actions:
+  # Predictive Memory Optimization
+  - name: predictive-memory-optimization
+    type: scale
+    description: "Predictive scaling before memory exhaustion"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 2
+      maxReplicas: 5
+      strategy: "predictive"
+    priority: 8
+    requiresApproval: false
+    annotations:
+      prediction-action: "true"
+      intervention-type: "preventive-scaling"
+      confidence-threshold: "70%"
+  
+  # Predictive CPU Load Balancing
+  - name: predictive-cpu-rebalancing
+    type: restart
+    description: "Predictive restart to prevent CPU cascade failure"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+      gracePeriod: "30s"
+    priority: 10
+    requiresApproval: false
+    annotations:
+      prediction-action: "true"
+      intervention-type: "preventive-restart"
+      pattern-type: "cpu-oscillation"
+  
+  # Predictive Network Circuit Breaker
+  - name: predictive-network-isolation
+    type: patch
+    description: "Apply circuit breaker before network failure"
+    patchAction:
+      target: "deployment"
+      patch: |
+        spec:
+          template:
+            metadata:
+              annotations:
+                kubeskippy.io/network-protection: "enabled"
+                kubeskippy.io/circuit-breaker: "active"
+            spec:
+              containers:
+              - name: network-degradation-app
+                env:
+                - name: CIRCUIT_BREAKER_ENABLED
+                  value: "true"
+                - name: DEGRADATION_PROTECTION
+                  value: "active"
+    priority: 12
+    requiresApproval: false
+    annotations:
+      prediction-action: "true"
+      intervention-type: "preventive-protection"
+  
+  # Emergency Predictive Intervention
+  - name: emergency-predictive-intervention
+    type: delete
+    description: "Emergency pod deletion to prevent cascade failure"
+    priority: 15
+    requiresApproval: false  # Auto-approve for high-confidence predictions
+    annotations:
+      prediction-action: "true"
+      intervention-type: "emergency-prevention"
+      cascade-prevention: "true"
+  
+  safetyRules:
+    maxActionsPerHour: 12  # Higher limit for predictive actions
+    requireHealthCheck: true
+    healthCheckTimeout: "3m"
+    predictiveMode: true
+    confidenceThreshold: 0.7  # 70% confidence required
+    trendAnalysisWindow: "10m"
+  
+  mode: "automatic"
+  
+  # AI Configuration for Predictive Analysis
+  aiConfig:
+    enablePredictiveAnalysis: true
+    predictionHorizon: "5m"
+    confidenceThreshold: 0.7
+    trendAnalysisEnabled: true
+    multiMetricCorrelation: true
+    patternLearningEnabled: true
+    earlyWarningEnabled: true
+---
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: continuous-healing-coordinator
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Coordinates continuous healing across multiple applications"
+    kubeskippy.io/confidence: "medium"
+    kubeskippy.io/reasoning: "Orchestrates healing actions to prevent system-wide degradation"
+spec:
+  selector:
+    labelSelector:
+      matchLabels:
+        demo: kubeskippy
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  # System-wide Health Monitoring
+  - name: system-wide-degradation
+    type: metric
+    metricTrigger:
+      query: "system_health_score"
+      threshold: 80  # System health below 80%
+      operator: "<"
+      duration: "3m"
+    cooldownPeriod: "10m"
+  
+  # Continuous Failure Detection
+  - name: continuous-failure-pattern
+    type: event
+    eventTrigger:
+      reason: "FailurePattern"
+      type: "Warning" 
+      count: 3
+      window: "10m"
+    cooldownPeriod: "5m"
+  
+  actions:
+  # Coordinated Healing Response
+  - name: coordinated-system-healing
+    type: scale
+    description: "Coordinate healing across affected applications"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      strategy: "coordinated"
+    priority: 5
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 8
+    requireHealthCheck: true
+    systemWideCoordination: true
+  
+  mode: "automatic"

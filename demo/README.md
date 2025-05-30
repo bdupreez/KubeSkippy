@@ -12,79 +12,99 @@
 > If Go is not installed, the setup will fail to generate required files.  
 > You can verify Go is installed by running: `go version`
 
-This demo showcases KubeSkippy's autonomous healing capabilities by simulating various application issues and watching the operator automatically detect and remediate them.
+This demo showcases KubeSkippy's **AI-powered autonomous healing** capabilities by simulating continuous application failures and demonstrating how the operator uses artificial intelligence to predict, detect, and remediate issues with strategic decisions including **AI Strategic Deletes** and **Resource Optimization**.
 
 ## Quick Start
 
 ```bash
-# 1. Setup the demo environment
+# 1. Setup AI-powered demo with continuous failures (RECOMMENDED)
 ./setup.sh
 
-# 2. (Optional) Setup with Prometheus for advanced metrics
-./setup.sh --with-prometheus
+# 2. Setup without monitoring stack (basic mode)
+./setup.sh --no-monitoring
 
-# 3. (Optional) Setup with full monitoring stack (Prometheus + Grafana)
-./setup.sh --with-monitoring
-
-# 4. Watch healing in action (new terminal)
+# 3. Watch AI healing in action (new terminal)
 ./monitor.sh
 
-# 5. Quick demo with all features
+# 4. Access enhanced Grafana dashboard with AI metrics
+# http://localhost:3000 (admin/admin)
+# Dashboard: "KubeSkippy Enhanced AI Healing Overview"
+
+# 5. Quick demo status check
 ./quick-demo.sh
 ```
 
 ## Demo Applications
 
-The demo includes four problematic applications that trigger different healing policies:
+The demo includes **continuous failure applications** designed to showcase AI-powered predictive healing:
 
-| Application | Issue | Healing Actions |
-|------------|-------|-----------------|
-| **crashloop-app** | Exits with error code 1 | • Apply debug patches<br>• Restart pods |
-| **memory-leak-app** | Memory grows to 500MB then crashes | • Restart pods<br>• Scale deployment |
-| **cpu-spike-app** | Random CPU spikes | • Scale horizontally<br>• Apply CPU limits |
-| **flaky-web-app** | 20% error rate (500/502/504) | • Restart pods<br>• Scale up service |
-| **pattern-failure-app** | Complex multi-condition failures | • AI pattern recognition<br>• Strategic healing |
+### Core Failure Applications
+| Application | Issue Pattern | Traditional vs AI Healing |
+|------------|---------------|---------------------------|
+| **crashloop-app** | Exits with error code 1 | Traditional: Restarts after crash<br>**AI**: Predictive intervention |
+| **memory-leak-app** | Memory grows to 500MB then crashes | Traditional: Restarts at 85% usage<br>**AI**: Strategic deletes at 30% |
+| **cpu-spike-app** | Random CPU spikes | Traditional: Scales at 80% CPU<br>**AI**: Resource optimization at 40% |
+| **flaky-web-app** | 20% error rate (500/502/504) | Traditional: Restarts after degradation<br>**AI**: Predictive scaling |
 
-## Healing Policies
+### AI Continuous Failure Generators
+| Application | Failure Pattern | AI Strategic Actions |
+|------------|-----------------|---------------------|
+| **continuous-memory-degradation** | Gradual memory increase (60s cycles) | **AI Strategic Deletes**<br>**Resource Optimization** |
+| **continuous-cpu-oscillation** | Sine wave CPU patterns with escalation | **Predictive Scaling**<br>**Intelligent Restarts** |
+| **continuous-network-degradation** | Gradual network latency increases | **AI System Patches**<br>**Emergency Deletes** |
+| **chaos-monkey-component** | Random unpredictable failures (30s intervals) | **Cascade Prevention**<br>**Strategic Interventions** |
 
-### 1. Crashloop Pod Healing
+## Healing Policies Architecture
+
+### 🤖 AI Strategic Healing Policies (PRIMARY)
+
+#### 1. AI Strategic Healing
+- **Triggers**: Low thresholds for early intervention (CPU >50%, Memory >25%)
+- **Actions**: 
+  - **AI Strategic Deletes** (Priority 5)
+  - **AI Resource Optimization** (Priority 8)
+  - **AI Intelligent Restarts** (Priority 12)
+  - **AI System Patches** (Priority 15)
+- **Rate Limit**: 25 actions/hour for continuous demo activity
+- **Mode**: Automatic with AI decision-making
+
+#### 2. AI Cascade Prevention
+- **Triggers**: Event-based cascade detection (Created/Started events)
+- **Actions**:
+  - **AI Emergency Deletes** (Priority 1 - Highest)
+  - **AI Controlled Scaling** (Priority 3)
+- **Rate Limit**: 30 actions/hour for emergency scenarios
+- **Mode**: Automatic emergency intervention
+
+#### 3. Predictive AI Healing
+- **Triggers**: Predictive analysis with early warning thresholds (30% memory, 40% CPU)
+- **Actions**: Early intervention before traditional policies trigger
+- **Rate Limit**: 15 actions/hour
+- **Mode**: Automatic predictive healing
+
+### 📊 Traditional Healing Policies (REDUCED RATES)
+
+#### 4. Crashloop Pod Healing
 - **Triggers**: Restart count > 3 or CrashLoopBackOff status
-- **Actions**: Applies debug environment variables and restarts pods
-- **Mode**: Automatic
+- **Actions**: Debug patches and restarts
+- **Rate Limit**: **2 actions/hour** (reduced to let AI handle more)
 
-### 2. Memory Leak Healing
+#### 5. Memory Leak Healing
 - **Triggers**: Memory usage > 85% for 3 minutes
-- **Actions**: Rolling restart and horizontal scaling
-- **Mode**: Automatic
+- **Actions**: Rolling restart and scaling
+- **Rate Limit**: **1 action/hour** (reduced to let AI handle more)
 
-### 3. CPU Spike Healing
-- **Triggers**: CPU usage > 80% for 2 minutes
-- **Actions**: Horizontal scaling and CPU limit adjustment
-- **Mode**: Automatic
-- **Note**: May not trigger in demo if CPU usage stays below threshold
-
-### 4. Service Degradation Healing
+#### 6. Service Degradation Healing
 - **Triggers**: Error rate > 5% or availability < 99.5%
-- **Actions**: Restart pods and scale up deployment
-- **Mode**: Automatic
+- **Actions**: Restart pods and scale up
+- **Rate Limit**: **1 action/hour** (reduced to let AI handle more)
 
-### 5. AI-Driven Healing
-- **Triggers**: Multiple metrics and event patterns with AI analysis
-- **Actions**: Intelligent remediation based on AI pattern recognition
-- **Mode**: Automatic (AI-powered actions execute automatically)
-- **Special Features**: Pattern recognition, confidence scoring, strategic decision-making
+### 🔄 Continuous Activity Policies
 
-### 6. AI-Intelligent Healing (Enhanced)
-- **Triggers**: Complex pattern recognition, predictive analysis
-- **Actions**: Confidence-based actions with reasoning annotations
-- **Mode**: Automatic with advanced AI capabilities
-- **Special Features**: Multi-dimensional analysis, alternative strategy evaluation
-
-### 7. Prometheus-Based Healing (Optional)
-- **Triggers**: PromQL queries for advanced metrics
-- **Metrics**: HTTP error rates, P99 latency, custom app metrics
-- **Actions**: Context-aware healing based on real application behavior
-- **Mode**: Automatic (requires --with-prometheus or --with-monitoring setup)
+#### 7. Continuous Activity Policy
+- **Purpose**: Ensures constant healing demonstration
+- **Triggers**: Event-based with 30s cooldowns
+- **Rate Limit**: 50 actions/hour for demo visibility
 
 ## Managing AI-Driven Healing
 
@@ -120,8 +140,8 @@ This shows:
 - Operator logs
 - Monitoring stack status (Prometheus/Grafana)
 
-### Visual Monitoring with Grafana (Optional)
-If you deployed with `--with-monitoring`, access Grafana for visual dashboards:
+### Enhanced AI Monitoring with Grafana (INCLUDED BY DEFAULT)
+Access the enhanced Grafana dashboard with dedicated AI metrics:
 
 ```bash
 # 1. Start port forwarding (if not already running)
@@ -137,20 +157,31 @@ http://localhost:3000
 Username: admin
 Password: admin
 
-# 5. Find the dashboard
-# Option A: Navigate to Dashboards → KubeSkippy Healing Overview
-# Option B: Direct link: http://localhost:3000/d/kubeskippy-overview
+# 5. Find the enhanced dashboard
+# Option A: Navigate to Dashboards → KubeSkippy Enhanced AI Healing Overview
+# Option B: Direct link: http://localhost:3000/d/kubeskippy-enhanced
 ```
 
-The KubeSkippy dashboard includes:
-- **Healing Actions Over Time**: Real-time count of healing actions
+The **Enhanced KubeSkippy AI Dashboard** includes:
+
+#### 🤖 AI Analysis & Healing Section
+- **AI-Driven Healing Actions**: Counter showing total AI-triggered actions
+- **AI Backend Status**: Real-time Ollama/AI service availability
+- **AI Healing Activity Timeline**: Time series of AI action rates and patterns
+- **AI Actions Table**: Recent AI-driven healing actions with detailed status
+- **AI Confidence Levels**: AI decision confidence scoring over time
+
+#### 📊 Traditional Healing Metrics
+- **Healing Actions Over Time**: Real-time count of all healing actions
 - **Success Rate**: Percentage of successful vs failed healing actions
 - **Active Policies**: Number of healing policies currently active
-- **Policy Evaluations**: Total evaluation count over time
-- **Healing Actions Timeline**: Time-series graph of actions by type
+- **Healing Actions by Type**: Breakdown showing AI vs traditional actions
 - **Target Application Health**: CPU and memory metrics for demo apps
-- **Action Results by Type**: Pie chart of success/failure distribution
-- **Recent Healing Actions**: Log view of recent healing activity
+
+#### 🎯 Strategic Action Tracking
+- **AI Strategic Deletes**: Count and timeline of AI strategic delete actions
+- **AI Resource Optimization**: Scale and patch actions by AI
+- **Cascade Prevention**: Emergency interventions and their effectiveness
 
 ### Access Prometheus (Optional)
 For raw metrics and custom queries:

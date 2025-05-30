@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-activity-generator
+  namespace: demo-apps
+  labels:
+    app: demo-activity-generator
+    demo: kubeskippy
+    component: demo-activity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-activity-generator
+  template:
+    metadata:
+      labels:
+        app: demo-activity-generator
+        demo: "kubeskippy"
+        ai-target: "false"  # Don't heal this component
+      annotations:
+        kubeskippy.io/protected: "true"  # Protect from healing
+    spec:
+      containers:
+      - name: activity-generator
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🎭 Demo Activity Generator - Ensures Continuous Healing Visibility"
+          
+          ACTIVITY_ROUND=0
+          while true; do
+            ACTIVITY_ROUND=$((ACTIVITY_ROUND + 1))
+            echo "🎬 Demo activity round #${ACTIVITY_ROUND}"
+            
+            # Phase 1: Create visible CPU/Memory activity
+            echo "⚡ Phase 1: Resource activity simulation"
+            
+            # High CPU burst (visible in metrics)
+            timeout 10s sh -c 'while true; do :; done' &
+            timeout 10s sh -c 'while true; do :; done' &
+            
+            # Memory allocation burst (visible in metrics)
+            dd if=/dev/zero of=/tmp/demo_memory bs=1M count=30 2>/dev/null &
+            MEM_PID=$!
+            
+            sleep 15
+            
+            # Phase 2: Clean up and cause "events"
+            echo "🧹 Phase 2: Cleanup and event generation"
+            pkill -f "while true" 2>/dev/null || true
+            kill $MEM_PID 2>/dev/null || true
+            rm -f /tmp/demo_memory
+            
+            # Phase 3: Simulate different failure patterns
+            echo "🎯 Phase 3: Failure pattern simulation"
+            
+            # Create temporary files that will cause events
+            for i in {1..5}; do
+              dd if=/dev/zero of=/tmp/pattern_${i} bs=1M count=5 2>/dev/null &
+            done
+            
+            sleep 5
+            
+            # Cleanup
+            rm -f /tmp/pattern_*
+            
+            # Phase 4: Log events for potential healing triggers
+            echo "📝 Phase 4: Event logging"
+            echo "DEMO_EVENT: high_resource_usage detected"
+            echo "DEMO_EVENT: pattern_failure_simulated"
+            echo "DEMO_EVENT: cleanup_completed"
+            
+            # Short rest between rounds
+            echo "😴 Rest period - 30 seconds"
+            sleep 30
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "100Mi"
+            cpu: "500m"
+        env:
+        - name: DEMO_MODE
+          value: "continuous"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-activity-generator
+  namespace: demo-apps
+  labels:
+    app: demo-activity-generator
+spec:
+  selector:
+    app: demo-activity-generator
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP

@@ -8,8 +8,11 @@ DEMO_NAMESPACE="demo-apps"
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "🚀 KubeSkippy Demo Setup"
-echo "========================"
+echo "🚀 KubeSkippy AI & Continuous Healing Demo Setup"
+echo "=================================================="
+echo "🧠 Includes: AI-driven healing, predictive analysis, continuous failures"
+echo "📊 Enhanced: Grafana dashboard with AI intelligence metrics"
+echo ""
 
 # Check prerequisites
 echo "📋 Checking prerequisites..."
@@ -150,25 +153,36 @@ echo ""
 echo "🎯 Deploying demo applications..."
 cd "$SCRIPT_DIR"
 if [ -d "apps" ]; then
-    echo "  - Deploying all apps..."
-    kubectl apply -f apps/ || {
-        echo "  ❌ Failed to deploy apps, exiting..."
-        exit 1
-    }
+    echo "  - Deploying standard demo apps..."
+    for app in apps/crashloop-app.yaml apps/memory-leak-app.yaml apps/cpu-spike-app.yaml apps/flaky-web-app.yaml; do
+        kubectl apply -f "$app" || echo "    ⚠️ Failed to deploy $(basename $app)"
+    done
+    
+    echo "  - Deploying AI & continuous failure apps..."
+    for app in apps/continuous-*.yaml apps/stress-generator-app.yaml apps/demo-activity-generator.yaml apps/chaos-monkey-component.yaml; do
+        if [ -f "$app" ]; then
+            kubectl apply -f "$app" || echo "    ⚠️ Failed to deploy $(basename $app)"
+        fi
+    done
+    
+    echo "  - Deploying pattern failure app..."
+    kubectl apply -f apps/pattern-failure-app.yaml || echo "    ⚠️ Failed to deploy pattern-failure-app"
 else
     echo "  ❌ Apps directory not found!"
     exit 1
 fi
-echo "✅ Demo applications deployed!"
+echo "✅ Demo applications deployed! (includes AI & continuous failure scenarios)"
 
-# Apply healing policies
+# Apply healing policies  
 echo ""
 echo "🏥 Applying healing policies..."
 cd "$SCRIPT_DIR"
 POLICY_SUCCESS=0
 POLICY_FAILED=0
-for policy in policies/*.yaml; do
-    if [[ ! "$policy" == *"prometheus-based"* ]] || [[ "$WITH_PROMETHEUS" == "true" ]] || [[ "$WITH_MONITORING" == "true" ]] || [[ "$1" == "--with-prometheus" ]] || [[ "$1" == "--with-monitoring" ]]; then
+
+# Apply core healing policies first
+for policy in policies/crashloop-healing.yaml policies/memory-healing.yaml policies/cpu-spike-healing.yaml policies/service-degradation-healing.yaml; do
+    if [ -f "$policy" ]; then
         echo "  - Applying $(basename $policy)..."
         if kubectl apply -f $policy; then
             ((POLICY_SUCCESS++))
@@ -178,10 +192,39 @@ for policy in policies/*.yaml; do
         fi
     fi
 done
-echo "✅ Healing policies applied! (${POLICY_SUCCESS} successful, ${POLICY_FAILED} failed)"
 
-# Optional: Deploy Prometheus
-if [[ "$1" == "--with-monitoring" ]] || [[ "$1" == "--with-prometheus" ]] || [[ "$WITH_PROMETHEUS" == "true" ]] || [[ "$WITH_MONITORING" == "true" ]]; then
+# Apply AI and predictive policies
+echo "  - Applying AI & predictive healing policies..."
+for policy in policies/ai-driven-healing.yaml policies/ai-intelligent-healing-simple.yaml policies/predictive-ai-healing-simple.yaml policies/ai-strategic-healing.yaml policies/continuous-*.yaml; do
+    if [ -f "$policy" ]; then
+        echo "  - Applying $(basename $policy)..."
+        if kubectl apply -f $policy; then
+            ((POLICY_SUCCESS++))
+        else
+            echo "    ⚠️ Failed to apply $(basename $policy)"
+            ((POLICY_FAILED++))
+        fi
+    fi
+done
+
+# Apply Prometheus-based policies if monitoring is enabled
+if [[ "$WITH_PROMETHEUS" == "true" ]] || [[ "$WITH_MONITORING" == "true" ]] || [[ "$1" == "--with-prometheus" ]] || [[ "$1" == "--with-monitoring" ]]; then
+    if [ -f "policies/prometheus-based-healing.yaml" ]; then
+        echo "  - Applying prometheus-based-healing.yaml..."
+        if kubectl apply -f policies/prometheus-based-healing.yaml; then
+            ((POLICY_SUCCESS++))
+        else
+            echo "    ⚠️ Failed to apply prometheus-based-healing.yaml"
+            ((POLICY_FAILED++))
+        fi
+    fi
+fi
+
+echo "✅ Healing policies applied! (${POLICY_SUCCESS} successful, ${POLICY_FAILED} failed)"
+echo "🧠 AI-driven healing enabled by default with predictive capabilities"
+
+# Deploy monitoring stack by default (can be disabled with --no-monitoring)
+if [[ "$1" != "--no-monitoring" ]] && [[ "$1" != "--basic" ]]; then
     echo ""
     echo "📊 Deploying monitoring stack..."
     
@@ -190,8 +233,8 @@ if [[ "$1" == "--with-monitoring" ]] || [[ "$1" == "--with-prometheus" ]] || [[ 
     kubectl apply -f monitoring/kube-state-metrics.yaml > /dev/null
     kubectl apply -f prometheus/prometheus-demo.yaml > /dev/null
     
-    # Deploy Grafana if monitoring stack is requested
-    if [[ "$1" == "--with-monitoring" ]] || [[ "$WITH_MONITORING" == "true" ]]; then
+    # Deploy Grafana by default (unless specifically basic mode)
+    if [[ "$1" != "--basic" ]] && [[ "$1" != "--prometheus-only" ]]; then
         kubectl apply -f grafana/grafana-demo.yaml > /dev/null
         echo "  - Deployed: kube-state-metrics, Prometheus, Grafana"
     else
@@ -249,8 +292,8 @@ echo "  - Operator: $(kubectl get pods -n ${NAMESPACE} -l control-plane=controll
 echo "  - Demo apps: $(kubectl get deployments -n ${DEMO_NAMESPACE} --no-headers 2>/dev/null | wc -l | tr -d ' ') deployment(s)"
 echo "  - Policies: $(kubectl get healingpolicies -n ${DEMO_NAMESPACE} --no-headers 2>/dev/null | wc -l | tr -d ' ') policy(ies)"
 
-# Show monitoring access if deployed
-if [[ "$1" == "--with-monitoring" ]] || [[ "$WITH_MONITORING" == "true" ]]; then
+# Show monitoring access if deployed (default)
+if [[ "$1" != "--no-monitoring" ]] && [[ "$1" != "--basic" ]]; then
     echo ""
     echo "📊 Monitoring Access:"
     echo "Starting port forwarding automatically..."
@@ -327,6 +370,9 @@ else
     echo "- Redeploy with monitoring: ./setup.sh --with-monitoring"
     echo "- Prometheus only: ./setup.sh --with-prometheus"
 fi
+echo ""
+echo "🎯 KubeSkippy AI & Continuous Healing Demo Ready!"
+echo "Enhanced with predictive AI, continuous failures, and real-time monitoring."
 echo ""
 echo "To clean up: ./cleanup.sh"
 

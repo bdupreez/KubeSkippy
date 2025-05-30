@@ -1,6 +1,6 @@
 # KubeSkippy - Kubernetes Self-Healing Operator
 
-An intelligent Kubernetes operator that automatically detects, diagnoses, and heals application issues using configurable policies and optional AI-powered analysis.
+An **AI-powered** Kubernetes operator that automatically detects, diagnoses, and heals application issues using configurable policies with **strategic AI decision-making**, including **AI Strategic Deletes**, **Resource Optimization**, and **Predictive Healing**.
 
 ## 🚀 Current Status
 
@@ -24,12 +24,15 @@ An intelligent Kubernetes operator that automatically detects, diagnoses, and he
   - [x] **Multiple action types**: Rolling restarts, horizontal scaling, configuration patches
   - [x] **Safety mechanisms**: Rate limiting, cooldown periods, protected resources
 
-- **AI Integration**
+- **AI Strategic Healing**
+  - [x] **AI Strategic Deletes**: Intelligent pod removal for optimization
+  - [x] **AI Resource Optimization**: Smart scaling and resource management  
+  - [x] **Predictive Healing**: Early intervention before traditional thresholds
+  - [x] **AI Cascade Prevention**: Emergency interventions to prevent system failures
   - [x] Ollama integration for local LLM inference
   - [x] OpenAI API support
-  - [x] Intelligent root cause analysis
-  - [x] Confidence-based recommendations
-  - [x] Safety validation of AI suggestions
+  - [x] Intelligent root cause analysis with confidence scoring
+  - [x] Multi-dimensional pattern recognition
 
 - **Production Features**
   - [x] Dry-run mode for testing policies
@@ -39,9 +42,15 @@ An intelligent Kubernetes operator that automatically detects, diagnoses, and he
   - [x] Helm chart for deployment
   - [x] Comprehensive test coverage with E2E tests
 
+- **Enhanced Monitoring**
+  - [x] **Enhanced Grafana Dashboard**: Dedicated AI metrics and strategic action tracking
+  - [x] **AI Confidence Metrics**: Real-time AI decision confidence scoring
+  - [x] **Strategic Action Analytics**: Tracking of AI deletes, optimizations, and interventions
+  - [x] **Continuous Failure Generation**: Demo apps with predictable failure patterns
+
 ### 🎯 Demo & Testing
 
-A comprehensive demo environment showcases all healing capabilities:
+A comprehensive **AI-powered demo** environment showcases continuous healing with strategic AI decisions:
 
 ## Prerequisites
 

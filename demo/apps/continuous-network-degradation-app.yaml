@@ -1,0 +1,192 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-network-degradation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-network-degradation-app
+    demo: kubeskippy
+    failure-type: predictive-network
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: continuous-network-degradation-app
+  template:
+    metadata:
+      labels:
+        app: continuous-network-degradation-app
+        demo: "kubeskippy"
+        issue: "service-degradation"
+        pattern: "predictive"
+        ai-target: "true"
+    spec:
+      containers:
+      - name: network-degradation-app
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        - name: html-content
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      - name: degradation-simulator
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🌐 Continuous Network Degradation App - AI Predictive Target"
+          
+          # Configuration for demo timing
+          DEGRADATION_CYCLE=${DEGRADATION_CYCLE:-300}  # 5 minutes per cycle
+          STEPS=${STEPS:-30}                           # 30 steps to failure
+          STEP_DURATION=$((DEGRADATION_CYCLE / STEPS))
+          
+          echo "Configuration: Cycle=${DEGRADATION_CYCLE}s, Steps=${STEPS}, Step=${STEP_DURATION}s"
+          
+          CYCLE=0
+          while true; do
+            CYCLE=$((CYCLE + 1))
+            echo "🔄 Starting network degradation cycle #${CYCLE}"
+            
+            # Generate degrading nginx configuration
+            for STEP in $(seq 1 $STEPS); do
+              ERROR_RATE=$((STEP * 3))  # 3% error rate per step
+              LATENCY_MS=$((STEP * 50)) # 50ms latency per step
+              PERCENTAGE=$((STEP * 100 / STEPS))
+              
+              echo "📡 Step ${STEP}/${STEPS}: ${ERROR_RATE}% errors, ${LATENCY_MS}ms latency (${PERCENTAGE}% degraded)"
+              
+              # Create nginx config with increasing error rates
+              cat > /tmp/default.conf << EOF
+          server {
+              listen 80;
+              server_name localhost;
+              
+              location / {
+                  # Simulate network degradation
+                  if (\$request_uri ~ ^/health) {
+                      return 200 "OK - Degradation: ${PERCENTAGE}%\n";
+                  }
+                  
+                  # Introduce errors based on degradation level
+                  set \$error_chance $ERROR_RATE;
+                  if (\$arg_error ~ "^([0-9]+)") {
+                      set \$error_chance \$1;
+                  }
+                  
+                  # Generate predictable error patterns
+                  if (\$error_chance >= 70) {
+                      return 503 "Service Degraded - ${ERROR_RATE}% error rate";
+                  }
+                  if (\$error_chance >= 50) {
+                      return 502 "Bad Gateway - Network Issues";
+                  }
+                  if (\$error_chance >= 30) {
+                      return 504 "Gateway Timeout - ${LATENCY_MS}ms";
+                  }
+                  
+                  root /usr/share/nginx/html;
+                  index index.html;
+              }
+              
+              location /metrics {
+                  return 200 "error_rate ${ERROR_RATE}\nlatency_ms ${LATENCY_MS}\ndegradation_percent ${PERCENTAGE}\n";
+              }
+          }
+          EOF
+              
+              # Copy config to nginx (simulated - actual nginx config update would require reload)
+              cp /tmp/default.conf /etc/nginx/conf.d/default.conf 2>/dev/null || true
+              
+              # Generate HTML page showing status
+              cat > /tmp/index.html << EOF
+          <html>
+          <head><title>Network Degradation Status</title></head>
+          <body>
+          <h1>🌐 Network Degradation Monitor</h1>
+          <p><strong>Cycle:</strong> ${CYCLE}</p>
+          <p><strong>Step:</strong> ${STEP}/${STEPS}</p>
+          <p><strong>Error Rate:</strong> ${ERROR_RATE}%</p>
+          <p><strong>Latency:</strong> ${LATENCY_MS}ms</p>
+          <p><strong>Degradation:</strong> ${PERCENTAGE}%</p>
+          <hr>
+          <p>Early warnings for AI:</p>
+          <ul>
+          EOF
+              
+              # Early warning detection points
+              if [ $PERCENTAGE -ge 60 ]; then
+                echo "⚠️  NETWORK WARNING: Service degradation at ${PERCENTAGE}% - AI should detect trend!"
+                echo "<li>⚠️ Network degradation trend detected at ${PERCENTAGE}%</li>" >> /tmp/index.html
+              fi
+              
+              if [ $PERCENTAGE -ge 80 ]; then
+                echo "🔥 NETWORK CRITICAL: Critical degradation at ${PERCENTAGE}% - AI should intervene!"
+                echo "<li>🔥 Critical network degradation at ${PERCENTAGE}%</li>" >> /tmp/index.html
+              fi
+              
+              cat >> /tmp/index.html << EOF
+          </ul>
+          </body>
+          </html>
+          EOF
+              
+              cp /tmp/index.html /usr/share/nginx/html/index.html 2>/dev/null || true
+              
+              # Complete failure at 100%
+              if [ $STEP -eq $STEPS ]; then
+                echo "💥 FAILURE: Network completely degraded - service failure!"
+                # Create a failure page
+                echo "<h1>💥 SERVICE FAILURE</h1><p>Network degradation reached 100%</p>" > /tmp/failure.html
+                cp /tmp/failure.html /usr/share/nginx/html/index.html 2>/dev/null || true
+                sleep 30
+                exit 1
+              fi
+              
+              sleep $STEP_DURATION
+            done
+            
+            echo "♻️  Recovery phase - network returning to normal..."
+            # Reset to healthy state
+            cat > /tmp/index.html << EOF
+          <html><body><h1>🟢 Service Recovered</h1><p>Network degradation cycle complete</p></body></html>
+          EOF
+            cp /tmp/index.html /usr/share/nginx/html/index.html 2>/dev/null || true
+            sleep 60  # Recovery period
+          done
+        env:
+        - name: DEGRADATION_CYCLE
+          value: "240"  # 4 minutes for faster demo
+        - name: STEPS
+          value: "24"   # 10 second steps
+      volumes:
+      - name: nginx-config
+        emptyDir: {}
+      - name: html-content
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: continuous-network-degradation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-network-degradation-app
+spec:
+  selector:
+    app: continuous-network-degradation-app
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP

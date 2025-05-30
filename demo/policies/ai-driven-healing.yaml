@@ -3,16 +3,26 @@ kind: HealingPolicy
 metadata:
   name: ai-driven-healing
   namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Enhanced AI healing with continuous monitoring and pattern recognition"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "Continuous AI analysis of application behavior patterns"
 spec:
   selector:
     labelSelector:
       matchExpressions:
       - key: issue
         operator: In
-        values: ["memory-leak", "cpu-spike", "crashloop", "intermittent-failures"]
+        values: ["memory-leak", "cpu-spike", "crashloop", "intermittent-failures", "complex-pattern", "service-degradation"]
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
     resources:
       - apiVersion: v1
         kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
   
   triggers:
   - name: high-cpu-usage
@@ -79,11 +89,8 @@ spec:
     requiresApproval: false
   
   safetyRules:
-    maxActionsPerHour: 2
-    protectedResources:
-      - apiVersion: v1
-        kind: Pod
+    maxActionsPerHour: 10  # Increased for continuous healing scenarios
     requireHealthCheck: true
-    healthCheckTimeout: "3m"
+    healthCheckTimeout: "2m"
   
   mode: "automatic"

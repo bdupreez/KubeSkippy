@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-monkey-component
+  namespace: demo-apps
+  labels:
+    app: chaos-monkey-component
+    demo: kubeskippy
+    failure-type: chaos-engineering
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-monkey-component
+  template:
+    metadata:
+      labels:
+        app: chaos-monkey-component
+        component: chaos-engineering
+        ai-target: "false"  # This component should not be healed
+      annotations:
+        kubeskippy.io/protected: "true"  # Protect from healing
+    spec:
+      containers:
+      - name: chaos-monkey
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🐒 Chaos Monkey - Continuous Failure Injection"
+          
+          # Configuration
+          CHAOS_INTERVAL=${CHAOS_INTERVAL:-45}     # Inject chaos every 45 seconds
+          MIN_INTERVAL=${MIN_INTERVAL:-30}         # Minimum interval
+          MAX_INTERVAL=${MAX_INTERVAL:-90}         # Maximum interval
+          
+          echo "Configuration: Base interval=${CHAOS_INTERVAL}s, Range=${MIN_INTERVAL}-${MAX_INTERVAL}s"
+          
+          # Chaos types and their weights (higher = more likely)
+          CHAOS_TYPES="memory:3 cpu:3 crash:2 network:2 restart:1"
+          
+          INJECTION=0
+          while true; do
+            INJECTION=$((INJECTION + 1))
+            
+            # Randomize interval (simulate unpredictable failures)
+            RANDOM_OFFSET=$((RANDOM % 30 - 15))  # -15 to +15 seconds
+            CURRENT_INTERVAL=$((CHAOS_INTERVAL + RANDOM_OFFSET))
+            if [ $CURRENT_INTERVAL -lt $MIN_INTERVAL ]; then
+              CURRENT_INTERVAL=$MIN_INTERVAL
+            elif [ $CURRENT_INTERVAL -gt $MAX_INTERVAL ]; then
+              CURRENT_INTERVAL=$MAX_INTERVAL
+            fi
+            
+            echo "🎯 Chaos injection #${INJECTION} in ${CURRENT_INTERVAL} seconds..."
+            sleep $CURRENT_INTERVAL
+            
+            # Select chaos type (weighted random)
+            CHAOS_RAND=$((RANDOM % 11))  # 0-10
+            if [ $CHAOS_RAND -le 2 ]; then
+              CHAOS_TYPE="memory"
+            elif [ $CHAOS_RAND -le 5 ]; then
+              CHAOS_TYPE="cpu"
+            elif [ $CHAOS_RAND -le 7 ]; then
+              CHAOS_TYPE="crash"
+            elif [ $CHAOS_RAND -le 9 ]; then
+              CHAOS_TYPE="network"
+            else
+              CHAOS_TYPE="restart"
+            fi
+            
+            echo "🐒 Injecting ${CHAOS_TYPE} chaos..."
+            
+            case $CHAOS_TYPE in
+              "memory")
+                echo "💾 Memory chaos: Creating memory pressure"
+                # Create temporary memory pressure
+                dd if=/dev/zero of=/tmp/chaos_memory bs=1M count=50 2>/dev/null &
+                CHAOS_PID=$!
+                sleep 20
+                kill $CHAOS_PID 2>/dev/null || true
+                rm -f /tmp/chaos_memory
+                echo "💾 Memory chaos complete"
+                ;;
+                
+              "cpu")
+                echo "🔥 CPU chaos: Creating CPU spikes"
+                # Create CPU spikes
+                timeout 15s sh -c 'while true; do :; done' &
+                timeout 15s sh -c 'while true; do :; done' &
+                wait
+                echo "🔥 CPU chaos complete"
+                ;;
+                
+              "crash")
+                echo "💥 Crash chaos: Simulating application crash"
+                # Signal other apps might crash (they'll handle it internally)
+                echo "CHAOS_SIGNAL=crash" > /tmp/chaos_signal
+                sleep 10
+                rm -f /tmp/chaos_signal
+                echo "💥 Crash chaos signal sent"
+                ;;
+                
+              "network")
+                echo "🌐 Network chaos: Simulating network issues"
+                # Simulate network latency/issues
+                timeout 25s sh -c '
+                  while true; do
+                    echo "Network delay simulation"
+                    sleep 1
+                  done
+                ' &
+                wait
+                echo "🌐 Network chaos complete"
+                ;;
+                
+              "restart")
+                echo "🔄 Restart chaos: Triggering restart scenarios"
+                # Create condition that might trigger restarts
+                echo "CHAOS_SIGNAL=restart" > /tmp/chaos_signal
+                sleep 5
+                rm -f /tmp/chaos_signal
+                echo "🔄 Restart chaos signal sent"
+                ;;
+            esac
+            
+            # Log chaos event for monitoring
+            echo "📊 CHAOS_EVENT: type=${CHAOS_TYPE}, injection=${INJECTION}, timestamp=$(date)"
+            
+            # Brief cool-down
+            sleep 10
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "300m"
+        env:
+        - name: CHAOS_INTERVAL
+          value: "30"    # 30 seconds for continuous demo
+        - name: MIN_INTERVAL
+          value: "15"    # 15 seconds minimum
+        - name: MAX_INTERVAL
+          value: "45"    # 45 seconds maximum
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chaos-monkey-config
+  namespace: demo-apps
+  labels:
+    app: chaos-monkey-component
+data:
+  chaos_types.txt: |
+    # Chaos Monkey Failure Types
+    memory: Memory pressure injection
+    cpu: CPU spike generation
+    crash: Application crash simulation
+    network: Network degradation simulation
+    restart: Restart trigger scenarios
+  
+  chaos_schedule.txt: |
+    # Chaos injection schedule (for AI to learn patterns)
+    # Format: minute_of_hour:chaos_type
+    05:memory
+    15:cpu
+    25:network
+    35:crash
+    45:restart
+    55:memory

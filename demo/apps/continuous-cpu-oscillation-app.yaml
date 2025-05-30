@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-cpu-oscillation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-cpu-oscillation-app
+    demo: kubeskippy
+    failure-type: predictive-cpu
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: continuous-cpu-oscillation-app
+  template:
+    metadata:
+      labels:
+        app: continuous-cpu-oscillation-app
+        demo: "kubeskippy"
+        issue: "cpu-spike"
+        pattern: "predictive"
+        ai-target: "true"
+    spec:
+      containers:
+      - name: cpu-oscillation-app
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🔥 Continuous CPU Oscillation App - AI Predictive Target"
+          
+          # Configuration for demo timing
+          WAVE_DURATION=${WAVE_DURATION:-240}  # 4 minutes per wave
+          OSCILLATIONS=${OSCILLATIONS:-24}      # 24 oscillations per wave
+          STEP_DURATION=$((WAVE_DURATION / OSCILLATIONS))
+          
+          echo "Configuration: Wave=${WAVE_DURATION}s, Oscillations=${OSCILLATIONS}, Step=${STEP_DURATION}s"
+          
+          WAVE=0
+          while true; do
+            WAVE=$((WAVE + 1))
+            echo "🌊 Starting CPU oscillation wave #${WAVE}"
+            
+            # Generate predictable CPU oscillation pattern
+            for OSC in $(seq 1 $OSCILLATIONS); do
+              # Calculate CPU intensity using sine wave pattern
+              # Intensity increases toward the end of the wave (predictive failure)
+              PROGRESS=$((OSC * 100 / OSCILLATIONS))
+              
+              # Base intensity increases over time (predictive pattern)
+              BASE_INTENSITY=$((OSC * 4))  # 4% increase per oscillation
+              
+              # Sine wave oscillation (0-50% amplitude)
+              SINE_FACTOR=$(echo "scale=0; 25 * (1 + s($OSC * 3.14159 / 6))" | bc -l 2>/dev/null || echo "25")
+              
+              TOTAL_INTENSITY=$((BASE_INTENSITY + SINE_FACTOR))
+              
+              echo "📊 Oscillation ${OSC}/${OSCILLATIONS}: CPU ${TOTAL_INTENSITY}% (Progress: ${PROGRESS}%)"
+              
+              # Early warning detection points
+              if [ $PROGRESS -ge 60 ]; then
+                echo "⚠️  TREND WARNING: CPU oscillation trend at ${PROGRESS}% - AI should detect pattern!"
+              fi
+              
+              if [ $PROGRESS -ge 80 ]; then
+                echo "🔥 ESCALATION WARNING: Critical CPU trend at ${PROGRESS}% - AI should intervene!"
+              fi
+              
+              # Generate CPU load based on intensity
+              if [ $TOTAL_INTENSITY -gt 80 ]; then
+                echo "💥 CRITICAL: CPU spike ${TOTAL_INTENSITY}% - system stress!"
+                timeout ${STEP_DURATION}s sh -c 'while true; do :; done' &
+                timeout ${STEP_DURATION}s sh -c 'while true; do :; done' &
+              elif [ $TOTAL_INTENSITY -gt 50 ]; then
+                echo "🔴 HIGH: CPU load ${TOTAL_INTENSITY}%"
+                timeout ${STEP_DURATION}s sh -c 'while true; do :; done' &
+              elif [ $TOTAL_INTENSITY -gt 20 ]; then
+                echo "🟡 MEDIUM: CPU load ${TOTAL_INTENSITY}%"
+                timeout $((STEP_DURATION / 2))s sh -c 'while true; do :; done' &
+              else
+                echo "🟢 LOW: CPU load ${TOTAL_INTENSITY}%"
+              fi
+              
+              # Crash if we reach maximum intensity
+              if [ $TOTAL_INTENSITY -gt 95 ]; then
+                echo "💥 FAILURE: CPU oscillation reached critical threshold - crashing!"
+                exit 1
+              fi
+              
+              sleep $STEP_DURATION
+            done
+            
+            echo "😌 Cool-down phase - CPU returning to normal..."
+            sleep 60  # Recovery period
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "800m"  # Allow high CPU for demonstration
+        env:
+        - name: WAVE_DURATION
+          value: "60"   # 1 minute for demo visibility
+        - name: OSCILLATIONS
+          value: "12"   # 5 second steps
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: continuous-cpu-oscillation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-cpu-oscillation-app
+spec:
+  selector:
+    app: continuous-cpu-oscillation-app
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP

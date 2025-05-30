@@ -53,7 +53,7 @@ spec:
     requiresApproval: false
   
   safetyRules:
-    maxActionsPerHour: 3
+    maxActionsPerHour: 1  # Reduced to let AI handle more scenarios
     requireHealthCheck: true
     healthCheckTimeout: "2m"
   

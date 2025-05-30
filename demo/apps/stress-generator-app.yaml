@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stress-generator-app
+  namespace: demo-apps
+  labels:
+    app: stress-generator-app
+    demo: kubeskippy
+    failure-type: continuous-stress
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: stress-generator-app
+  template:
+    metadata:
+      labels:
+        app: stress-generator-app
+        demo: "kubeskippy"
+        issue: "cpu-spike"
+        pattern: "predictive"
+        ai-target: "true"
+    spec:
+      containers:
+      - name: stress-generator
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🎯 Continuous Stress Generator - Guaranteed Measurable Load"
+          
+          CYCLE=0
+          while true; do
+            CYCLE=$((CYCLE + 1))
+            echo "🔄 Stress cycle #${CYCLE}"
+            
+            # Phase 1: CPU Stress (20 seconds)
+            echo "🔥 CPU stress phase - 50% load for 20s"
+            timeout 20s sh -c 'while true; do :; done' &
+            CPU_PID=$!
+            
+            # Phase 2: Memory Stress (20 seconds) 
+            echo "💾 Memory stress phase - 50MB allocation for 20s"
+            dd if=/dev/zero of=/tmp/stress_memory bs=1M count=50 2>/dev/null &
+            MEM_PID=$!
+            
+            # Let stress run
+            sleep 20
+            
+            # Cleanup
+            kill $CPU_PID 2>/dev/null || true
+            kill $MEM_PID 2>/dev/null || true
+            rm -f /tmp/stress_memory
+            
+            # Phase 3: Recovery (10 seconds)
+            echo "😌 Recovery phase - 10s"
+            sleep 10
+            
+            # Phase 4: Spike stress (10 seconds) - Should trigger healing
+            echo "⚡ SPIKE PHASE - 80% CPU + 80MB memory for 10s"
+            timeout 10s sh -c 'while true; do :; done' &
+            timeout 10s sh -c 'while true; do :; done' &
+            dd if=/dev/zero of=/tmp/spike_memory bs=1M count=80 2>/dev/null &
+            
+            sleep 10
+            
+            # Cleanup spike
+            pkill -f "while true" 2>/dev/null || true
+            rm -f /tmp/spike_memory
+            
+            echo "🎯 Cycle ${CYCLE} complete - should have triggered healing"
+            sleep 5
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "200Mi"
+            cpu: "1000m"  # Allow high CPU for stress testing
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stress-generator-app
+  namespace: demo-apps
+  labels:
+    app: stress-generator-app
+spec:
+  selector:
+    app: stress-generator-app
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP

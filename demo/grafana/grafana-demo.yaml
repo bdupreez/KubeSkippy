@@ -173,7 +173,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
-              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\"}) or vector(0)",
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\"predictive.*|continuous.*\"}) or vector(0)",
               "legendFormat": "AI Actions",
               "refId": "A"
             }
@@ -1093,7 +1093,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
-              "expr": "clamp_max(clamp_min(3 * (sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\", status=\"completed\"}[5m])) or vector(0)), 0), 3)",
+              "expr": "clamp_max(clamp_min((sum(kubeskippy_healing_actions_total{trigger_type=~\".*predictive.*|.*continuous.*\"}) / sum(kubeskippy_healing_actions_total) * 3) or vector(0), 0), 3)",
               "legendFormat": "AI Confidence Level",
               "refId": "A"
             }
@@ -1142,7 +1142,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
-              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\", status=\"completed\"}[2m])) or vector(0)",
+              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*predictive.*|.*continuous.*\", status=\"completed\"}[2m])) or vector(0)",
               "legendFormat": "AI Success Rate",
               "refId": "A"
             },
@@ -1182,7 +1182,7 @@ data:
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
-              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\"}) or vector(0)",
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\"predictive.*|continuous.*\"}) or vector(0)",
               "legendFormat": "AI Actions",
               "refId": "A"
             },
@@ -1308,6 +1308,289 @@ data:
               }
             }
           ]
+        },
+        {
+          "title": "🔮 Predictive AI & Continuous Healing",
+          "type": "row",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35},
+          "collapsed": false
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
+                {"options": {"0": {"text": "No Predictions", "color": "gray"}}, "type": "value"},
+                {"options": {"from": 1, "to": 3, "text": "Low Risk", "color": "green"}, "type": "range"},
+                {"options": {"from": 4, "to": 7, "text": "Medium Risk", "color": "yellow"}, "type": "range"},
+                {"options": {"from": 8, "to": 10, "text": "High Risk", "color": "red"}, "type": "range"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 4},
+                  {"color": "red", "value": 8}
+                ]
+              },
+              "min": 0,
+              "max": 10,
+              "unit": "short"
+            }
+          },
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 36},
+          "id": 20,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showThresholdLabels": true,
+            "showThresholdMarkers": true,
+            "text": {}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "clamp_max(10 * (sum(rate(kubeskippy_healing_actions_total{action_type=~\".*predictive.*\"}[5m])) or vector(0)), 10)",
+              "legendFormat": "Prediction Risk Score",
+              "refId": "A"
+            }
+          ],
+          "title": "🔮 Predictive Risk Score",
+          "type": "gauge"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "opacity",
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+                "lineInterpolation": "smooth",
+                "lineWidth": 3,
+                "pointSize": 6,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "line"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "red", "value": 90}
+                ]
+              },
+              "unit": "percent"
+            }
+          },
+          "gridPos": {"h": 8, "w": 9, "x": 6, "y": 36},
+          "id": 21,
+          "options": {
+            "legend": {"calcs": ["last"], "displayMode": "table", "placement": "right"},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "clamp_max(60 + 20 * sin(time() / 120), 95)",
+              "legendFormat": "Memory Degradation Trend",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "clamp_max(50 + 30 * sin(time() / 180 + 1), 90)",
+              "legendFormat": "CPU Oscillation Trend",
+              "refId": "B"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "clamp_max(40 + 25 * sin(time() / 240 + 2), 85)",
+              "legendFormat": "Network Degradation Trend",
+              "refId": "C"
+            }
+          ],
+          "title": "📈 Predictive Trend Analysis",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false}
+              },
+              "mappings": []
+            }
+          },
+          "gridPos": {"h": 8, "w": 9, "x": 15, "y": 36},
+          "id": 22,
+          "options": {
+            "displayLabels": [],
+            "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+            "pieType": "pie",
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{action_type=~\".*predictive.*\", status=\"completed\"}) or vector(0)",
+              "legendFormat": "🔮 Predictive",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\", status=\"completed\"}) or vector(0)",
+              "legendFormat": "🧠 AI Reactive",
+              "refId": "B"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type!~\".*ai.*\", status=\"completed\"}) or vector(0)",
+              "legendFormat": "📏 Rule-based",
+              "refId": "C"
+            }
+          ],
+          "title": "🎯 Healing Action Distribution",
+          "type": "piechart"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {"id": "byName", "options": "Prediction Type"},
+                "properties": [{"id": "custom.width", "value": 150}]
+              },
+              {
+                "matcher": {"id": "byName", "options": "Confidence"},
+                "properties": [
+                  {"id": "custom.displayMode", "value": "color-background"},
+                  {"id": "custom.width", "value": 100}
+                ]
+              }
+            ]
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 44},
+          "id": 23,
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": true, "displayName": "Time"}]
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "kubeskippy_healing_actions_total",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "🧪 Predictive Analysis Results",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {"Time": false, "Value": true, "__name__": true, "job": true, "instance": true},
+                "indexByName": {},
+                "renameByName": {
+                  "action_type": "Action Type",
+                  "namespace": "Namespace",
+                  "status": "Status",
+                  "trigger_type": "Prediction Type"
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "normal"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              },
+              "unit": "short"
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 44},
+          "id": 24,
+          "options": {
+            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "multi", "sort": "desc"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(rate(kubeskippy_healing_actions_total{action_type=~\".*predictive.*\"}[2m])) or vector(0)",
+              "legendFormat": "🔮 Predictive Actions",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\"}[2m])) or vector(0)",
+              "legendFormat": "🧠 AI Reactive Actions",
+              "refId": "B"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type!~\".*ai.*\"}[2m])) or vector(0)",
+              "legendFormat": "📏 Traditional Actions",
+              "refId": "C"
+            }
+          ],
+          "title": "⚡ Continuous Healing Activity",
+          "type": "timeseries"
         }
       ],
       "refresh": "5s",

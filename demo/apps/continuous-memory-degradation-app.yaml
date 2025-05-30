@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-memory-degradation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-memory-degradation-app
+    demo: kubeskippy
+    failure-type: predictive-memory
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: continuous-memory-degradation-app
+  template:
+    metadata:
+      labels:
+        app: continuous-memory-degradation-app
+        demo: "kubeskippy"
+        issue: "memory-leak"
+        pattern: "predictive"
+        ai-target: "true"
+    spec:
+      containers:
+      - name: memory-degradation-app
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "🧠 Continuous Memory Degradation App - AI Predictive Target"
+          
+          # Configuration for demo timing
+          CYCLE_DURATION=${CYCLE_DURATION:-300}  # 5 minutes per cycle
+          DEGRADATION_STEPS=${DEGRADATION_STEPS:-30}  # 30 steps to failure
+          STEP_DURATION=$((CYCLE_DURATION / DEGRADATION_STEPS))
+          
+          echo "Configuration: Cycle=${CYCLE_DURATION}s, Steps=${DEGRADATION_STEPS}, Step=${STEP_DURATION}s"
+          
+          CYCLE=0
+          while true; do
+            CYCLE=$((CYCLE + 1))
+            echo "🔄 Starting degradation cycle #${CYCLE}"
+            
+            # Gradual memory degradation phase
+            for STEP in $(seq 1 $DEGRADATION_STEPS); do
+              MEMORY_MB=$((STEP * 8))  # 8MB per step = 96MB at failure
+              PERCENTAGE=$((STEP * 100 / DEGRADATION_STEPS))
+              
+              echo "📈 Step ${STEP}/${DEGRADATION_STEPS}: Allocating ${MEMORY_MB}MB (${PERCENTAGE}% to failure)"
+              
+              # Allocate memory gradually and keep it in memory (not just disk)
+              dd if=/dev/zero of=/tmp/memory_leak_${STEP} bs=1M count=$MEMORY_MB 2>/dev/null
+              
+              # Also create memory pressure that shows up in metrics
+              for i in $(seq 1 $MEMORY_MB); do
+                dd if=/dev/zero bs=1M count=1 | tr '\0' 'A' > /tmp/mem_pressure_${STEP}_${i} 2>/dev/null &
+              done
+              
+              # Early warning signs for AI (70% threshold)
+              if [ $PERCENTAGE -ge 70 ]; then
+                echo "⚠️  EARLY WARNING: Memory degradation at ${PERCENTAGE}% - AI should detect!"
+                
+                # Simulate performance degradation
+                timeout 2s yes > /dev/null &
+                
+                # Critical warning at 90%
+                if [ $PERCENTAGE -ge 90 ]; then
+                  echo "🔥 CRITICAL: Imminent failure at ${PERCENTAGE}% - AI should intervene NOW!"
+                fi
+              fi
+              
+              # Complete failure at 100%
+              if [ $STEP -eq $DEGRADATION_STEPS ]; then
+                echo "💥 FAILURE: Memory degradation complete - crashing!"
+                exit 1
+              fi
+              
+              sleep $STEP_DURATION
+            done
+            
+            echo "♻️  Recovery phase - cleaning up memory..."
+            rm -f /tmp/memory_leak_*
+            sleep 30  # Brief recovery period
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        env:
+        - name: CYCLE_DURATION
+          value: "60"   # 1 minute for demo visibility
+        - name: DEGRADATION_STEPS
+          value: "12"   # 5 second steps
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: continuous-memory-degradation-app
+  namespace: demo-apps
+  labels:
+    app: continuous-memory-degradation-app
+spec:
+  selector:
+    app: continuous-memory-degradation-app
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP

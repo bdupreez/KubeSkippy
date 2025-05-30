@@ -1,0 +1,188 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-strategic-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "AI Strategic Healing - Advanced AI actions including strategic deletes"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "AI performs strategic deletions and resource optimization"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  # Aggressive AI triggers for demonstrating delete actions
+  - name: ai-strategic-cpu-intervention
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 50  # Very low threshold for demo
+      operator: ">"
+      duration: "30s"
+    cooldownPeriod: "2m"
+  
+  - name: ai-strategic-memory-intervention
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 25  # Very low threshold for demo
+      operator: ">"
+      duration: "30s"
+    cooldownPeriod: "2m"
+  
+  - name: ai-strategic-restart-pattern
+    type: event
+    eventTrigger:
+      reason: "Started"
+      type: "Normal"
+      count: 1
+      window: "3m"
+    cooldownPeriod: "90s"
+  
+  # High-frequency trigger for continuous demo activity
+  - name: ai-strategic-activity-trigger
+    type: event
+    eventTrigger:
+      reason: ".*"
+      type: "Normal"
+      count: 2
+      window: "2m"
+    cooldownPeriod: "60s"
+  
+  actions:
+  # AI Strategic Delete - High priority to trigger first
+  - name: ai-strategic-delete
+    type: delete
+    description: "AI Strategic Delete - Intelligent pod removal for optimization"
+    priority: 5  # High priority to trigger before others
+    requiresApproval: false
+  
+  # AI Resource Optimization - Scale decisions
+  - name: ai-resource-optimization
+    type: scale
+    description: "AI Resource Optimization - Intelligent scaling decisions"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 4
+    priority: 8
+    requiresApproval: false
+  
+  # AI Intelligent Restart - Strategic restart decisions
+  - name: ai-intelligent-restart
+    type: restart
+    description: "AI Intelligent Restart - Strategic pod restart optimization"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 12
+    requiresApproval: false
+  
+  # AI System Patch - Intelligent configuration changes
+  - name: ai-system-patch
+    type: patch
+    description: "AI System Patch - Intelligent configuration optimization"
+    patchAction:
+      type: "strategic"
+      patch: |
+        metadata:
+          annotations:
+            kubeskippy.io/ai-optimized: "true"
+            kubeskippy.io/optimization-timestamp: "{{ .Now }}"
+        spec:
+          template:
+            metadata:
+              annotations:
+                kubeskippy.io/ai-intervention: "resource-optimization"
+    priority: 15
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 25  # High limit for demo activity
+    requireHealthCheck: false  # Disabled for faster demo activity
+    healthCheckTimeout: "30s"
+  
+  mode: "automatic"
+---
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-cascade-prevention
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "AI Cascade Prevention - Emergency delete actions"
+    kubeskippy.io/confidence: "very-high"
+    kubeskippy.io/reasoning: "AI prevents cascade failures through strategic deletions"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: ai-target
+        operator: In
+        values: ["true"]
+      - key: pattern
+        operator: In
+        values: ["predictive"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+  
+  triggers:
+  # Cascade prevention trigger
+  - name: ai-cascade-prevention-trigger
+    type: event
+    eventTrigger:
+      reason: "Created"
+      type: "Normal"
+      count: 1
+      window: "2m"
+    cooldownPeriod: "30s"
+  
+  # Multiple restart prevention
+  - name: ai-restart-cascade-prevention
+    type: event
+    eventTrigger:
+      reason: "Started"
+      type: "Normal"
+      count: 1
+      window: "90s"
+    cooldownPeriod: "45s"
+  
+  actions:
+  # Emergency AI Delete - Very high priority
+  - name: ai-emergency-delete
+    type: delete
+    description: "AI Emergency Delete - Cascade failure prevention"
+    priority: 1  # Highest priority
+    requiresApproval: false
+  
+  # AI Controlled Scaling
+  - name: ai-controlled-scaling
+    type: scale
+    description: "AI Controlled Scaling - Prevent resource exhaustion"
+    scaleAction:
+      direction: "down"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 2
+    priority: 3
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 30  # Very high for emergency actions
+    requireHealthCheck: false
+  
+  mode: "automatic"

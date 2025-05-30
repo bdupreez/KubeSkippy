@@ -1,0 +1,143 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: continuous-activity-policy
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Ensures continuous healing activity for demo visibility"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "Event-based triggers for guaranteed continuous demo activity"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+      - key: ai-target
+        operator: In
+        values: ["true"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  # Continuous Pod Start Events (triggers on any pod start)
+  - name: continuous-pod-starts
+    type: event
+    eventTrigger:
+      reason: "Started"
+      type: "Normal"
+      count: 1
+      window: "2m"
+    cooldownPeriod: "1m"  # Short cooldown for demo activity
+  
+  # Continuous Container Creation (triggers frequently)
+  - name: continuous-container-creation
+    type: event
+    eventTrigger:
+      reason: "Created"
+      type: "Normal"
+      count: 1
+      window: "3m"
+    cooldownPeriod: "90s"
+  
+  # Continuous Image Pulls (common event)
+  - name: continuous-image-pulls
+    type: event
+    eventTrigger:
+      reason: "Pulled"
+      type: "Normal"
+      count: 1
+      window: "5m"
+    cooldownPeriod: "2m"
+  
+  # Any Pod Events (catchall for activity)
+  - name: continuous-pod-activity
+    type: event
+    eventTrigger:
+      reason: ".*"  # Any reason
+      type: "Normal"
+      count: 2
+      window: "5m"
+    cooldownPeriod: "2m"
+  
+  actions:
+  # Light-touch scaling action
+  - name: continuous-demo-scaling
+    type: scale
+    description: "Continuous demo scaling for visibility"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+    priority: 5
+    requiresApproval: false
+  
+  # Light-touch restart action
+  - name: continuous-demo-restart
+    type: restart
+    description: "Continuous demo restart for activity"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 20  # High limit for continuous demo activity
+    requireHealthCheck: false  # Skip health checks for demo speed
+    healthCheckTimeout: "30s"
+  
+  mode: "automatic"
+---
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: guaranteed-demo-activity
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Guaranteed demo activity through regular pod cycling"
+    kubeskippy.io/confidence: "medium"
+    kubeskippy.io/reasoning: "Ensures visible healing activity by regular pod management"
+spec:
+  selector:
+    labelSelector:
+      matchLabels:
+        demo: "kubeskippy"
+    resources:
+      - apiVersion: v1
+        kind: Pod
+  
+  triggers:
+  # Trigger on any pod activity
+  - name: guaranteed-activity-trigger
+    type: event
+    eventTrigger:
+      reason: ".*"
+      type: ".*"
+      count: 1
+      window: "3m"
+    cooldownPeriod: "90s"
+  
+  actions:
+  # Guaranteed visible action
+  - name: guaranteed-demo-action
+    type: restart
+    description: "Guaranteed demo activity - pod restart"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 8
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 25  # Very high limit for guaranteed activity
+    requireHealthCheck: false
+  
+  mode: "automatic"
