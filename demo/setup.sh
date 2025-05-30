@@ -326,3 +326,13 @@ else
 fi
 echo ""
 echo "To clean up: ./cleanup.sh"
+
+fix_grafana_dashboard() {
+  echo "🔄 Fixing Grafana dashboard provisioning..."
+  kubectl -n monitoring apply -f grafana/grafana-demo.yaml
+  kubectl -n monitoring delete pod -l app.kubernetes.io/name=grafana
+  echo "✅ Grafana dashboard fix applied!"
+}
+
+# Fix Grafana dashboard provisioning
+fix_grafana_dashboard
