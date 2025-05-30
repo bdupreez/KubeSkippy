@@ -1,4 +1,4 @@
-# K8s AI Auto-Healing Operator Design
+# KubeSkippy Operator Design
 
 ## Architecture Overview
 
@@ -65,7 +65,7 @@ protectedResources:
       kind: "PersistentVolume"
   labels:
     - "app.kubernetes.io/managed-by=Helm"
-    - "nanny.ai/protected=true"
+    - "kubeskippy.io/protected=true"
 ```
 
 ### Action Approval Levels
@@ -170,14 +170,14 @@ rate(container_cpu_cfs_throttled_periods_total[5m]) > 0.5
 
 ### GitOps Structure
 ```
-k8s-ai-nanny/
+kubeskippy/
 ├── .github/workflows/      # CI pipelines
 ├── config/
 │   ├── crd/               # CRDs
 │   ├── rbac/              # RBAC rules
 │   └── samples/           # Example configs
 ├── helm/
-│   └── ai-nanny/          # Helm chart
+│   └── kubeskippy/          # Helm chart
 ├── environments/
 │   ├── dev/               # Dev overrides
 │   ├── staging/           # Staging config
@@ -199,7 +199,7 @@ k8s-ai-nanny/
 ```go
 healingActionsTotal = prometheus.NewCounterVec(
     prometheus.CounterOpts{
-        Name: "nanny_healing_actions_total",
+        Name: "kubeskippy_healing_actions_total",
         Help: "Total number of healing actions taken",
     },
     []string{"action_type", "namespace", "status"},
@@ -207,7 +207,7 @@ healingActionsTotal = prometheus.NewCounterVec(
 
 aiAnalysisLatency = prometheus.NewHistogramVec(
     prometheus.HistogramOpts{
-        Name: "nanny_ai_analysis_duration_seconds",
+        Name: "kubeskippy_ai_analysis_duration_seconds",
         Help: "Latency of AI analysis",
     },
     []string{"model"},

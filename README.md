@@ -183,13 +183,13 @@ helm install kubeskippy kubeskippy/kubeskippy \
 
 ## 🚧 Roadmap
 
-### Near Term (Q1 2024)
-- [ ] Prometheus metrics integration
+### Near Term (Q2 2025)
+- [ ] Enhanced Prometheus metrics integration
 - [ ] Custom webhook actions
 - [ ] Multi-cluster support
 - [ ] Policy templates library
 
-### Medium Term (Q2 2024)
+### Medium Term (Q3 2025)
 - [ ] Predictive healing (fix before failure)
 - [ ] Cost-aware actions  
 - [ ] Integration with PagerDuty/Slack
@@ -209,7 +209,7 @@ We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for deta
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/kubeskippy.git
+git clone https://github.com/kubeskippy/kubeskippy.git
 cd kubeskippy
 
 # Install dependencies

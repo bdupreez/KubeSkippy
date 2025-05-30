@@ -55,31 +55,34 @@ else
     done
 fi
 
-# AI-Driven Healing Demo
-echo -e "\n${BLUE}🤖 AI-Driven Healing Demo${NC}"
-echo "──────────────────────────"
+# AI-Driven Healing Status
+echo -e "\n${BLUE}🤖 AI-Driven Healing Status${NC}"
+echo "───────────────────────────"
 
 current_mode=$(kubectl get healingpolicy ai-driven-healing -n demo-apps -o jsonpath='{.spec.mode}' 2>/dev/null)
-echo -e "Current mode: ${YELLOW}$current_mode${NC}"
-
-if [[ "$1" == "--enable-ai" ]]; then
-    echo -e "\n${YELLOW}Enabling AI-driven healing...${NC}"
-    kubectl patch healingpolicy ai-driven-healing -n demo-apps \
-        --type merge -p '{"spec":{"mode":"automatic"}}' >/dev/null
-    
-    echo "Waiting for AI analysis (30 seconds)..."
-    sleep 30
-    
-    echo -e "\n${GREEN}AI-driven healing actions:${NC}"
-    kubectl get healingactions -n demo-apps | grep ai-driven || echo "No AI actions yet"
-    
-    echo -e "\n${YELLOW}Reverting to dryrun mode...${NC}"
-    kubectl patch healingpolicy ai-driven-healing -n demo-apps \
-        --type merge -p '{"spec":{"mode":"dryrun"}}' >/dev/null
-    echo -e "${GREEN}✓ AI-driven healing demo complete${NC}"
+if [[ "$current_mode" == "automatic" ]]; then
+    echo -e "AI-driven healing: ${GREEN}✓ ENABLED${NC} (automatic mode)"
+    echo -e "\n${YELLOW}Recent AI-driven healing actions:${NC}"
+    ai_actions=$(kubectl get healingactions -n demo-apps 2>/dev/null | grep -E "ai-driven|ai-" | tail -5)
+    if [[ -z "$ai_actions" ]]; then
+        echo "No AI actions yet (wait 1-2 minutes for AI analysis)"
+    else
+        echo "$ai_actions" | while read line; do
+            name=$(echo $line | awk '{print $1}')
+            phase=$(echo $line | awk '{print $4}')
+            if [[ "$phase" == "Completed" ]]; then
+                echo -e "• ${GREEN}✓${NC} $name"
+            elif [[ "$phase" == "Failed" ]]; then
+                echo -e "• ${RED}✗${NC} $name"
+            else
+                echo -e "• ${YELLOW}⟳${NC} $name ($phase)"
+            fi
+        done
+    fi
 else
-    echo -e "\nTo see AI-driven healing in action, run:"
-    echo -e "  ${GREEN}./quick-demo.sh --enable-ai${NC}"
+    echo -e "AI-driven healing: ${YELLOW}○ DISABLED${NC} ($current_mode mode)"
+    echo -e "\nTo enable AI-driven healing, run:"
+    echo -e "  ${GREEN}kubectl patch healingpolicy ai-driven-healing -n demo-apps --type merge -p '{\"spec\":{\"mode\":\"automatic\"}}'${NC}"
 fi
 
 # Summary
@@ -92,5 +95,7 @@ echo "• Policies with actions: $(kubectl get healingpolicies -n demo-apps --no
 echo -e "\n${YELLOW}Next Steps:${NC}"
 echo "• Watch live updates: ./monitor.sh"
 echo "• Check detailed status: ./check-demo.sh"
-echo "• Enable AI healing: ./quick-demo.sh --enable-ai"
+if [[ "$current_mode" != "automatic" ]]; then
+    echo "• Enable AI healing: kubectl patch healingpolicy ai-driven-healing -n demo-apps --type merge -p '{\"spec\":{\"mode\":\"automatic\"}}'"
+fi
 echo "• Clean up: ./cleanup.sh"

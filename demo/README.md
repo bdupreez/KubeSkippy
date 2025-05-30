@@ -70,7 +70,7 @@ The demo includes four problematic applications that trigger different healing p
 ### 5. AI-Driven Healing
 - **Triggers**: Multiple metrics and event patterns
 - **Actions**: Intelligent remediation based on AI analysis
-- **Mode**: Dryrun (can be changed to automatic)
+- **Mode**: Automatic (AI-powered actions execute automatically)
 
 ### 6. Prometheus-Based Healing (Optional)
 - **Triggers**: PromQL queries for advanced metrics
@@ -80,16 +80,16 @@ The demo includes four problematic applications that trigger different healing p
 
 ## Managing AI-Driven Healing
 
-The AI-driven healing policy runs in `dryrun` mode by default to prevent unintended actions. You can switch modes:
+The AI-driven healing policy runs in `automatic` mode by default, executing AI-powered healing actions automatically. You can switch to dryrun mode if needed:
 
 ```bash
-# Enable automatic mode (healing actions will be executed)
-kubectl patch healingpolicy ai-driven-healing -n demo-apps \
-  --type merge -p '{"spec":{"mode":"automatic"}}'
-
-# Switch back to dryrun mode (actions logged but not executed)
+# Switch to dryrun mode (actions logged but not executed)
 kubectl patch healingpolicy ai-driven-healing -n demo-apps \
   --type merge -p '{"spec":{"mode":"dryrun"}}'
+
+# Switch back to automatic mode (healing actions will be executed)
+kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+  --type merge -p '{"spec":{"mode":"automatic"}}'
 
 # Check current mode
 kubectl get healingpolicy ai-driven-healing -n demo-apps -o jsonpath='{.spec.mode}'
@@ -188,9 +188,10 @@ kubectl logs -n kubeskippy-system deployment/kubeskippy-controller-manager | gre
 
 ### Scenario 2: AI-Driven Healing (1 minute)
 ```bash
-# Enable AI-driven healing
-kubectl patch healingpolicy ai-driven-healing -n demo-apps \
-  --type merge -p '{"spec":{"mode":"automatic"}}'
+# AI-driven healing is already enabled by default
+# Check current mode
+kubectl get healingpolicy ai-driven-healing -n demo-apps -o jsonpath='{.spec.mode}'
+echo
 
 # Wait 30 seconds for triggers to evaluate
 sleep 30
@@ -198,9 +199,9 @@ sleep 30
 # Check AI-driven actions
 kubectl get healingactions -n demo-apps | grep ai-driven
 
-# Switch back to dryrun
-kubectl patch healingpolicy ai-driven-healing -n demo-apps \
-  --type merge -p '{"spec":{"mode":"dryrun"}}'
+# Optional: Switch to dryrun if you want to disable automatic actions
+# kubectl patch healingpolicy ai-driven-healing -n demo-apps \
+#   --type merge -p '{"spec":{"mode":"dryrun"}}'
 ```
 
 ### Scenario 3: Quick Demo Script
@@ -210,9 +211,8 @@ kubectl patch healingpolicy ai-driven-healing -n demo-apps \
 
 This script will:
 - Show current issues
-- Enable AI-driven healing temporarily
-- Display healing actions
-- Revert AI-driven healing to dryrun
+- Display healing actions (AI-driven healing is already enabled)
+- Show the status of all healing policies
 
 ## Expected Timeline
 

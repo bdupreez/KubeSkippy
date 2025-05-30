@@ -39,7 +39,7 @@ kubectl port-forward -n monitoring svc/grafana 3000:3000
 
 3. **AI-Driven Healing Actions**
    - Total count of AI-triggered healing actions
-   - Shows 0 until AI analysis generates actions
+   - Automatically populated as AI-driven healing executes (enabled by default in demo)
 
 4. **AI Backend Status**
    - Status of Ollama/AI backend service
