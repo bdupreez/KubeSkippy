@@ -1,5 +1,17 @@
 # KubeSkippy Demo
 
+## Prerequisites
+
+- **Go toolchain**: Required for generating Kubernetes CRDs and running the demo.
+  - Install with Homebrew (macOS):  
+    ```sh
+    brew install go
+    ```
+  - Or follow instructions for your OS: https://golang.org/doc/install
+
+> If Go is not installed, the setup will fail to generate required files.  
+> You can verify Go is installed by running: `go version`
+
 This demo showcases KubeSkippy's autonomous healing capabilities by simulating various application issues and watching the operator automatically detect and remediate them.
 
 ## Quick Start

@@ -43,6 +43,18 @@ An intelligent Kubernetes operator that automatically detects, diagnoses, and he
 
 A comprehensive demo environment showcases all healing capabilities:
 
+## Prerequisites
+
+- **Go toolchain**: Required for generating Kubernetes CRDs and running the demo.
+  - Install with Homebrew (macOS):  
+    ```sh
+    brew install go
+    ```
+  - Or follow instructions for your OS: https://golang.org/doc/install
+
+> If Go is not installed, the setup will fail to generate required files.  
+> You can verify Go is installed by running: `go version`
+
 ```bash
 # Start the demo
 cd demo
@@ -179,7 +191,7 @@ helm install kubeskippy kubeskippy/kubeskippy \
 
 ### Medium Term (Q2 2024)
 - [ ] Predictive healing (fix before failure)
-- [ ] Cost-aware actions
+- [ ] Cost-aware actions  
 - [ ] Integration with PagerDuty/Slack
 - [ ] Fine-tuned AI models
 
