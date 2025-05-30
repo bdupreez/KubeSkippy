@@ -43,6 +43,7 @@ The demo includes four problematic applications that trigger different healing p
 | **memory-leak-app** | Memory grows to 500MB then crashes | • Restart pods<br>• Scale deployment |
 | **cpu-spike-app** | Random CPU spikes | • Scale horizontally<br>• Apply CPU limits |
 | **flaky-web-app** | 20% error rate (500/502/504) | • Restart pods<br>• Scale up service |
+| **pattern-failure-app** | Complex multi-condition failures | • AI pattern recognition<br>• Strategic healing |
 
 ## Healing Policies
 
@@ -68,11 +69,18 @@ The demo includes four problematic applications that trigger different healing p
 - **Mode**: Automatic
 
 ### 5. AI-Driven Healing
-- **Triggers**: Multiple metrics and event patterns
-- **Actions**: Intelligent remediation based on AI analysis
+- **Triggers**: Multiple metrics and event patterns with AI analysis
+- **Actions**: Intelligent remediation based on AI pattern recognition
 - **Mode**: Automatic (AI-powered actions execute automatically)
+- **Special Features**: Pattern recognition, confidence scoring, strategic decision-making
 
-### 6. Prometheus-Based Healing (Optional)
+### 6. AI-Intelligent Healing (Enhanced)
+- **Triggers**: Complex pattern recognition, predictive analysis
+- **Actions**: Confidence-based actions with reasoning annotations
+- **Mode**: Automatic with advanced AI capabilities
+- **Special Features**: Multi-dimensional analysis, alternative strategy evaluation
+
+### 7. Prometheus-Based Healing (Optional)
 - **Triggers**: PromQL queries for advanced metrics
 - **Metrics**: HTTP error rates, P99 latency, custom app metrics
 - **Actions**: Context-aware healing based on real application behavior
@@ -204,7 +212,18 @@ kubectl get healingactions -n demo-apps | grep ai-driven
 #   --type merge -p '{"spec":{"mode":"dryrun"}}'
 ```
 
-### Scenario 3: Quick Demo Script
+### Scenario 3: AI Intelligence Showcase
+```bash
+./showcase-ai.sh
+```
+
+This script will:
+- Deploy complex pattern failure scenarios
+- Enable enhanced AI healing policies
+- Show real-time AI vs rule-based comparison
+- Display AI confidence levels and decision reasoning
+
+### Scenario 4: Quick Demo Script
 ```bash
 ./quick-demo.sh
 ```

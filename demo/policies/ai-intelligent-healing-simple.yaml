@@ -1,0 +1,88 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-intelligent-healing-simple
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "AI-powered healing with pattern recognition"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "Enhanced AI pattern detection for complex failures"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["complex-pattern", "memory-leak", "cpu-spike", "crashloop"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+  
+  triggers:
+  # AI-enhanced memory analysis
+  - name: ai-memory-pattern
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 70
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "5m"
+  
+  # AI CPU pattern analysis  
+  - name: ai-cpu-pattern
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 75
+      operator: ">"
+      duration: "3m"
+    cooldownPeriod: "8m"
+  
+  # AI restart pattern detection
+  - name: ai-restart-pattern
+    type: event
+    eventTrigger:
+      reason: "Restarted"
+      type: "Warning"
+      count: 2
+      window: "8m"
+    cooldownPeriod: "3m"
+  
+  actions:
+  # AI strategic restart
+  - name: ai-strategic-restart
+    type: restart
+    description: "AI-analyzed strategic restart"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 5
+    requiresApproval: false
+  
+  # AI intelligent scaling
+  - name: ai-intelligent-scale
+    type: scale
+    description: "AI-driven intelligent scaling"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 4
+    priority: 10
+    requiresApproval: false
+  
+  # AI targeted deletion
+  - name: ai-targeted-delete
+    type: delete
+    description: "AI-targeted deletion for complex patterns"
+    priority: 15
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 6
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+  
+  mode: "automatic"

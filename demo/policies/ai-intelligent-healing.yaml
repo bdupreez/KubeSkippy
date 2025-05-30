@@ -1,0 +1,162 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-intelligent-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "AI-powered healing with pattern recognition and intelligent reasoning"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["complex-pattern", "memory-leak", "cpu-spike", "crashloop", "intermittent-failures"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+  
+  triggers:
+  # Multi-dimensional pattern recognition
+  - name: complex-failure-pattern
+    type: ai-pattern
+    aiTrigger:
+      patterns:
+        - "memory-spike-correlation"
+        - "time-based-failure"
+        - "cascading-failure"
+      confidenceThreshold: 0.75
+      analysisWindow: "15m"
+    cooldownPeriod: "5m"
+  
+  # Intelligent memory usage analysis
+  - name: intelligent-memory-analysis
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 75
+      operator: ">"
+      duration: "3m"
+    aiAnalysis:
+      enabled: true
+      factors: ["growth-rate", "allocation-pattern", "leak-probability"]
+    cooldownPeriod: "8m"
+  
+  # CPU pattern analysis
+  - name: smart-cpu-analysis
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 80
+      operator: ">"
+      duration: "2m"
+    aiAnalysis:
+      enabled: true
+      factors: ["spike-frequency", "duration-pattern", "correlation-with-requests"]
+    cooldownPeriod: "10m"
+  
+  # Predictive restart detection
+  - name: predictive-restart-analysis
+    type: event
+    eventTrigger:
+      reason: "Restarted"
+      type: "Warning"
+      count: 2
+      window: "10m"
+    aiAnalysis:
+      enabled: true
+      factors: ["restart-interval", "resource-correlation", "error-patterns"]
+    cooldownPeriod: "5m"
+  
+  actions:
+  # Intelligent restart with AI reasoning
+  - name: ai-intelligent-restart
+    type: restart
+    description: "AI-analyzed restart with pattern-based timing"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+      waitTime: "30s"
+    priority: 5
+    requiresApproval: false
+    aiAnnotations:
+      reasoning: "Restart recommended based on failure pattern analysis"
+      confidence: "dynamic"
+      alternatives: ["scale", "resource-adjustment"]
+  
+  # Smart scaling based on AI analysis
+  - name: ai-pattern-scaling
+    type: scale
+    description: "AI-driven scaling based on load patterns"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 5
+    priority: 10
+    requiresApproval: false
+    aiAnnotations:
+      reasoning: "Scaling up based on predictive load analysis"
+      confidence: "dynamic"
+      effectiveness: "high"
+  
+  # AI-guided pod deletion for complex failures
+  - name: ai-strategic-delete
+    type: delete
+    description: "AI-targeted deletion for complex failure patterns"
+    priority: 15
+    requiresApproval: false
+    aiAnnotations:
+      reasoning: "Strategic deletion to break failure cascade"
+      confidence: "dynamic"
+      pattern: "complex-failure-recovery"
+  
+  # AI resource patching
+  - name: ai-resource-optimization
+    type: patch
+    description: "AI-optimized resource limits based on usage patterns"
+    patchAction:
+      patch: |
+        spec:
+          containers:
+          - name: "*"
+            resources:
+              limits:
+                memory: "ai-calculated"
+                cpu: "ai-optimized"
+    priority: 20
+    requiresApproval: false
+    aiAnnotations:
+      reasoning: "Resource limits optimized based on usage analysis"
+      confidence: "dynamic"
+      optimization: "memory-efficiency"
+  
+  safetyRules:
+    maxActionsPerHour: 8
+    protectedResources:
+      - apiVersion: v1
+        kind: Pod
+        labelSelector:
+          matchLabels:
+            protected: "true"
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+    aiSafetyChecks:
+      enabled: true
+      confidenceMinimum: 0.7
+      validateAlternatives: true
+  
+  mode: "automatic"
+  
+  # AI Learning Configuration
+  aiConfig:
+    enabled: true
+    model: "kubeskippy-pattern-v1"
+    learningRate: 0.01
+    feedbackLoop: true
+    patternLibrary: "comprehensive"
+    reasoning:
+      explain: true
+      confidence: true
+      alternatives: true

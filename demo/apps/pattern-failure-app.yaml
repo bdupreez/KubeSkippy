@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pattern-failure-app
+  namespace: demo-apps
+  labels:
+    app: pattern-failure-app
+    demo: kubeskippy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pattern-failure-app
+  template:
+    metadata:
+      labels:
+        app: pattern-failure-app
+        issue: "complex-pattern"
+    spec:
+      containers:
+      - name: pattern-app
+        image: busybox
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Pattern Failure App starting..."
+          COUNTER=0
+          while true; do
+            COUNTER=$((COUNTER + 1))
+            
+            # Complex failure pattern: fails when multiple conditions align
+            MINUTE=$(date +%M)
+            MEMORY_SPIKE=$((COUNTER % 10))
+            LOAD_SPIKE=$((COUNTER % 7))
+            
+            # Fail when: minute is divisible by 3, AND memory spike, AND load spike
+            if [ $((MINUTE % 3)) -eq 0 ] && [ $MEMORY_SPIKE -gt 7 ] && [ $LOAD_SPIKE -gt 5 ]; then
+              echo "PATTERN DETECTED: Complex failure condition met!"
+              echo "Minute: $MINUTE, Memory pattern: $MEMORY_SPIKE, Load pattern: $LOAD_SPIKE"
+              
+              # Allocate memory to simulate spike
+              dd if=/dev/zero of=/tmp/waste bs=1M count=100
+              
+              # Simulate CPU spike
+              timeout 10s yes > /dev/null &
+              
+              # Exit with error after 30 seconds
+              sleep 30
+              echo "CRASHING due to complex pattern alignment!"
+              exit 1
+            fi
+            
+            # Normal operation with varying resource usage
+            echo "Normal operation - Counter: $COUNTER, Minute: $MINUTE"
+            
+            # Simulate varying memory usage
+            if [ $MEMORY_SPIKE -gt 5 ]; then
+              dd if=/dev/zero of=/tmp/normal bs=1M count=50
+            fi
+            
+            # Simulate varying CPU
+            if [ $LOAD_SPIKE -gt 3 ]; then
+              timeout 2s yes > /dev/null &
+            fi
+            
+            sleep 10
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pattern-failure-app
+  namespace: demo-apps
+  labels:
+    app: pattern-failure-app
+spec:
+  selector:
+    app: pattern-failure-app
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP

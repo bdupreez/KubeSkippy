@@ -1050,6 +1050,264 @@ data:
           ],
           "title": "AI Healing Actions - Recent Activity",
           "type": "table"
+        },
+        {
+          "title": "🧠 AI Intelligence Dashboard",
+          "type": "row",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25},
+          "collapsed": false
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [
+                {"options": {"0": {"text": "No AI Activity", "color": "orange"}}, "type": "value"},
+                {"options": {"1": {"text": "Low Confidence", "color": "yellow"}}, "type": "value"},
+                {"options": {"2": {"text": "Medium Confidence", "color": "blue"}}, "type": "value"},
+                {"options": {"3": {"text": "High Confidence", "color": "green"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "orange", "value": null},
+                  {"color": "yellow", "value": 1},
+                  {"color": "blue", "value": 2},
+                  {"color": "green", "value": 3}
+                ]
+              },
+              "min": 0,
+              "max": 3
+            }
+          },
+          "gridPos": {"h": 8, "w": 6, "x": 0, "y": 26},
+          "id": 14,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "text": {}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "clamp_max(clamp_min(3 * (sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\", status=\"completed\"}[5m])) or vector(0)), 0), 3)",
+              "legendFormat": "AI Confidence Level",
+              "refId": "A"
+            }
+          ],
+          "title": "AI Confidence Level",
+          "type": "gauge"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 8, "w": 9, "x": 6, "y": 26},
+          "id": 15,
+          "options": {
+            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\", status=\"completed\"}[2m])) or vector(0)",
+              "legendFormat": "AI Success Rate",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(rate(kubeskippy_healing_actions_total{trigger_type!~\".*ai.*\", status=\"completed\"}[2m])) or vector(0)",
+              "legendFormat": "Rule-based Success Rate",
+              "refId": "B"
+            }
+          ],
+          "title": "AI vs Rule-based Healing Effectiveness",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 8, "w": 9, "x": 15, "y": 26},
+          "id": 16,
+          "options": {
+            "displayMode": "lcd",
+            "orientation": "horizontal",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "showUnfilled": true
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "AI Actions",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{trigger_type!~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "Rule-based Actions",
+              "refId": "B"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"demo-apps\", pod=~\"pattern-failure.*\"}[1h])) or vector(0)",
+              "legendFormat": "Complex Pattern Failures",
+              "refId": "C"
+            }
+          ],
+          "title": "Healing Action Distribution",
+          "type": "bargauge"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false}
+              },
+              "mappings": []
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+          "id": 17,
+          "options": {
+            "legend": {"displayMode": "list", "placement": "right"},
+            "pieType": "pie",
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{action_type=\"restart\", trigger_type=~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "AI Restarts",
+              "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{action_type=\"scale\", trigger_type=~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "AI Scaling",
+              "refId": "B"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{action_type=\"delete\", trigger_type=~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "AI Strategic Deletes",
+              "refId": "C"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "sum(kubeskippy_healing_actions_total{action_type=\"patch\", trigger_type=~\".*ai.*\"}) or vector(0)",
+              "legendFormat": "AI Resource Optimization",
+              "refId": "D"
+            }
+          ],
+          "title": "AI Action Type Distribution",
+          "type": "piechart"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto"
+              },
+              "mappings": [
+                {"options": {"0": {"text": "Rule-based Only", "color": "orange"}}, "type": "value"},
+                {"options": {"1": {"text": "AI-Enhanced", "color": "green"}}, "type": "value"}
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+          "id": 18,
+          "options": {
+            "showHeader": true,
+            "sortBy": [{"desc": true, "displayName": "AI Confidence"}]
+          },
+          "targets": [
+            {
+              "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+              "expr": "kubeskippy_healing_actions_total{trigger_type=~\".*ai.*\"} or label_replace(vector(0), \"pattern\", \"complex-pattern-detected\", \"\", \"\")",
+              "format": "table",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "AI Pattern Recognition Results",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "__name__": true,
+                  "Time": true,
+                  "job": true,
+                  "instance": true
+                },
+                "renameByName": {
+                  "action_type": "Action Type",
+                  "trigger_type": "Trigger",
+                  "status": "Status",
+                  "Value": "AI Confidence"
+                }
+              }
+            }
+          ]
         }
       ],
       "refresh": "5s",
