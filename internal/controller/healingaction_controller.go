@@ -15,24 +15,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
 var (
-	healingActionsTotal = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "kubeskippy_healing_actions_total",
-			Help: "Total number of healing actions taken",
-		},
-		[]string{"action_type", "namespace", "status", "trigger_type"},
-	)
+	healingActionsTotal *prometheus.CounterVec
 )
 
-func init() {
-	metrics.Registry.MustRegister(healingActionsTotal)
+// SetHealingActionsMetric sets the healing actions metric from main.go
+func SetHealingActionsMetric(metric *prometheus.CounterVec) {
+	healingActionsTotal = metric
 }
 
 // HealingActionReconciler reconciles a HealingAction object

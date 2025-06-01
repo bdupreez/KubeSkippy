@@ -10,15 +10,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/metrics"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
 // Analyzer implements the AIAnalyzer interface
 type Analyzer struct {
-	config   config.AIConfig
-	client   AIClient
-	prompts  *PromptTemplates
-	validate bool
+	config          config.AIConfig
+	client          AIClient
+	prompts         *PromptTemplates
+	validate        bool
+	metricsRecorder *metrics.AIMetricsRecorder
 }
 
 // AIClient defines the interface for AI backend implementations
@@ -84,10 +86,11 @@ func NewAnalyzer(config config.AIConfig) (*Analyzer, error) {
 	}
 
 	return &Analyzer{
-		config:   config,
-		client:   client,
-		prompts:  prompts,
-		validate: true,
+		config:          config,
+		client:          client,
+		prompts:         prompts,
+		validate:        true,
+		metricsRecorder: metrics.NewAIMetricsRecorder(),
 	}, nil
 }
 
@@ -132,6 +135,11 @@ func (a *Analyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.
 		"issues", len(analysis.Issues),
 		"recommendations", len(analysis.Recommendations),
 		"confidence", analysis.Confidence)
+
+	// Record metrics for AI reasoning
+	if a.metricsRecorder != nil {
+		a.metricsRecorder.RecordAIAnalysis(analysis)
+	}
 
 	return analysis, nil
 }
@@ -215,18 +223,36 @@ func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysi
 	}
 
 	// Otherwise, parse the text response
+	// Check if response has the new format with REASONING_STEPS
+	hasReasoningSteps := strings.Contains(response, "REASONING_STEPS:")
+
+	var summaryEndMarker string
+	if hasReasoningSteps {
+		summaryEndMarker = "REASONING_STEPS"
+	} else {
+		summaryEndMarker = "ISSUES"
+	}
+
 	analysis = controller.AIAnalysis{
-		Summary:    extractSection(response, "SUMMARY", "ISSUES"),
+		Summary:    extractSection(response, "SUMMARY", summaryEndMarker),
 		Confidence: extractConfidence(response),
+	}
+
+	// Extract reasoning steps if present
+	if hasReasoningSteps {
+		reasoningText := extractSection(response, "REASONING_STEPS", "ISSUES")
+		analysis.ReasoningSteps = parseReasoningSteps(reasoningText)
+	} else {
+		analysis.ReasoningSteps = []controller.ReasoningStep{}
 	}
 
 	// Extract issues
 	issuesText := extractSection(response, "ISSUES", "RECOMMENDATIONS")
 	analysis.Issues = parseIssues(issuesText)
 
-	// Extract recommendations
+	// Extract recommendations with detailed reasoning
 	recsText := extractSection(response, "RECOMMENDATIONS", "END")
-	analysis.Recommendations = parseRecommendations(recsText)
+	analysis.Recommendations = parseRecommendationsWithReasoning(recsText)
 
 	// Default confidence if not found
 	if analysis.Confidence == 0 {
@@ -364,25 +390,42 @@ func parseIssues(text string) []controller.AIIssue {
 }
 
 func parseRecommendations(text string) []controller.AIRecommendation {
+	// Keep the old function for backwards compatibility
+	return parseRecommendationsWithReasoning(text)
+}
+
+func parseRecommendationsWithReasoning(text string) []controller.AIRecommendation {
 	recommendations := []controller.AIRecommendation{}
 	lines := strings.Split(text, "\n")
 
 	var currentRec *controller.AIRecommendation
+	var inReasoning bool
+	var reasoningSection string
+
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
 			continue
 		}
 
 		// Look for recommendation markers
-		if strings.HasPrefix(line, "1.") || strings.HasPrefix(line, "2.") || strings.HasPrefix(line, "3.") ||
-			strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
+		if strings.HasPrefix(trimmedLine, "1.") || strings.HasPrefix(trimmedLine, "2.") || strings.HasPrefix(trimmedLine, "3.") ||
+			strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "* ") {
+
+			// Save previous recommendation
 			if currentRec != nil {
+				if inReasoning {
+					currentRec.Reasoning = parseDecisionReasoning(reasoningSection)
+				}
 				recommendations = append(recommendations, *currentRec)
 			}
 
+			// Reset state
+			inReasoning = false
+			reasoningSection = ""
+
 			// Extract action from line
-			action := line
+			action := trimmedLine
 			for _, prefix := range []string{"1.", "2.", "3.", "4.", "5.", "- ", "* "} {
 				action = strings.TrimPrefix(action, prefix)
 			}
@@ -394,20 +437,34 @@ func parseRecommendations(text string) []controller.AIRecommendation {
 				Confidence: 0.8, // Default confidence
 			}
 		} else if currentRec != nil {
-			// Parse attributes
-			if strings.Contains(line, "Target:") {
-				currentRec.Target = strings.TrimSpace(strings.Split(line, ":")[1])
-			} else if strings.Contains(line, "Reason:") {
-				currentRec.Reason = strings.TrimSpace(strings.Split(line, ":")[1])
-			} else if strings.Contains(line, "Risk:") {
-				currentRec.Risk = strings.TrimSpace(strings.Split(line, ":")[1])
-			} else if strings.Contains(line, "Confidence:") {
-				fmt.Sscanf(strings.Split(line, ":")[1], "%f", &currentRec.Confidence)
+			// Check if we're entering reasoning section
+			if strings.HasPrefix(trimmedLine, "REASONING:") {
+				inReasoning = true
+				continue
+			}
+
+			if inReasoning {
+				reasoningSection += line + "\n"
+			} else {
+				// Parse basic attributes
+				if strings.Contains(trimmedLine, "Target:") {
+					currentRec.Target = strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+				} else if strings.Contains(trimmedLine, "Reason:") {
+					currentRec.Reason = strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+				} else if strings.Contains(trimmedLine, "Risk:") {
+					currentRec.Risk = strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+				} else if strings.Contains(trimmedLine, "Confidence:") {
+					fmt.Sscanf(strings.Split(trimmedLine, ":")[1], "%f", &currentRec.Confidence)
+				}
 			}
 		}
 	}
 
+	// Save last recommendation
 	if currentRec != nil {
+		if inReasoning {
+			currentRec.Reasoning = parseDecisionReasoning(reasoningSection)
+		}
 		recommendations = append(recommendations, *currentRec)
 	}
 
@@ -416,7 +473,7 @@ func parseRecommendations(text string) []controller.AIRecommendation {
 
 // Default prompt templates
 
-const defaultClusterAnalysisPrompt = `You are a Kubernetes cluster healing expert. Analyze the following cluster state and provide recommendations.
+const defaultClusterAnalysisPrompt = `You are a Kubernetes cluster healing expert. Analyze the following cluster state and provide detailed recommendations with reasoning.
 
 CLUSTER METRICS:
 %s
@@ -426,10 +483,22 @@ DETECTED ISSUES:
 
 Current Time: %s
 
-Please provide your analysis in the following format:
+Please provide your analysis in the following structured format:
 
 SUMMARY:
 [Provide a brief summary of the cluster health and main concerns]
+
+REASONING_STEPS:
+[Document your step-by-step analysis process]
+Step 1: [Description of first analytical step]
+  Evidence: [Supporting data points]
+  Confidence: [0.0-1.0]
+
+Step 2: [Description of second analytical step]
+  Evidence: [Supporting data points]
+  Confidence: [0.0-1.0]
+
+[Continue with additional steps...]
 
 ISSUES:
 [List each identified issue with severity, impact, and root cause]
@@ -439,16 +508,37 @@ ISSUES:
   Root Cause: [Likely root cause]
 
 RECOMMENDATIONS:
-[List actionable recommendations in priority order]
+[List actionable recommendations with detailed reasoning]
 1. [Specific action to take]
    Target: [Resource type/name to act on]
    Reason: [Why this action will help]
    Risk: [Any risks associated]
    Confidence: [0.0-1.0]
+   
+   REASONING:
+   Observations: [What patterns/symptoms led to this recommendation]
+   - [Observation 1]
+   - [Observation 2]
+   
+   Analysis: [Your analytical reasoning]
+   - [Analysis point 1]
+   - [Analysis point 2]
+   
+   Alternatives: [Other options considered]
+   - [Alternative 1]: Pros: [benefits] | Cons: [drawbacks] | Risk: [High/Medium/Low] | Rejected: [reason]
+   - [Alternative 2]: Pros: [benefits] | Cons: [drawbacks] | Risk: [High/Medium/Low] | Rejected: [reason]
+   
+   Decision_Logic: [Final reasoning for this specific choice]
+   
+   Confidence_Factors: [Factors affecting confidence]
+   - [Factor 1]: [Positive/Negative/Neutral] impact, Weight: [0.0-1.0], Evidence: [supporting data]
+   - [Factor 2]: [Positive/Negative/Neutral] impact, Weight: [0.0-1.0], Evidence: [supporting data]
+
+[Continue for additional recommendations...]
 
 END
 
-Focus on practical, safe actions that can be automated. Avoid destructive operations unless absolutely necessary.`
+Focus on practical, safe actions that can be automated. Provide transparent reasoning for each decision to build trust and enable learning.`
 
 const defaultIssueAnalysisPrompt = `Analyze the following Kubernetes issue and provide root cause analysis:
 
@@ -508,4 +598,207 @@ func (n *NoOpAnalyzer) ValidateRecommendation(ctx context.Context, recommendatio
 
 func (n *NoOpAnalyzer) GetModel() string {
 	return "no-op-analyzer"
+}
+
+// parseReasoningSteps parses the reasoning steps from AI response
+func parseReasoningSteps(text string) []controller.ReasoningStep {
+	steps := []controller.ReasoningStep{}
+	lines := strings.Split(text, "\n")
+
+	var currentStep *controller.ReasoningStep
+	stepCount := 0
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			continue
+		}
+
+		// Look for step markers (Step 1:, Step 2:, etc.)
+		if strings.HasPrefix(trimmedLine, "Step ") && strings.Contains(trimmedLine, ":") {
+			// Save previous step
+			if currentStep != nil {
+				steps = append(steps, *currentStep)
+			}
+
+			stepCount++
+			description := strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+
+			currentStep = &controller.ReasoningStep{
+				Step:        stepCount,
+				Description: description,
+				Evidence:    []string{},
+				Confidence:  0.8, // Default confidence
+				Timestamp:   time.Now(),
+			}
+		} else if currentStep != nil {
+			// Parse step attributes
+			if strings.Contains(trimmedLine, "Evidence:") {
+				evidence := strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+				if evidence != "" {
+					currentStep.Evidence = append(currentStep.Evidence, evidence)
+				}
+			} else if strings.Contains(trimmedLine, "Confidence:") {
+				fmt.Sscanf(strings.Split(trimmedLine, ":")[1], "%f", &currentStep.Confidence)
+			} else if strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "• ") {
+				// Additional evidence points
+				evidence := strings.TrimPrefix(strings.TrimPrefix(trimmedLine, "- "), "• ")
+				currentStep.Evidence = append(currentStep.Evidence, evidence)
+			}
+		}
+	}
+
+	// Save last step
+	if currentStep != nil {
+		steps = append(steps, *currentStep)
+	}
+
+	return steps
+}
+
+// parseDecisionReasoning parses detailed reasoning for a recommendation
+func parseDecisionReasoning(text string) controller.DecisionReasoning {
+	reasoning := controller.DecisionReasoning{
+		Observations:      []string{},
+		Analysis:          []string{},
+		Alternatives:      []controller.Alternative{},
+		ConfidenceFactors: []controller.ConfidenceFactor{},
+	}
+
+	lines := strings.Split(text, "\n")
+	var currentSection string
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			continue
+		}
+
+		// Identify sections
+		if strings.HasPrefix(trimmedLine, "Observations:") {
+			currentSection = "observations"
+			continue
+		} else if strings.HasPrefix(trimmedLine, "Analysis:") {
+			currentSection = "analysis"
+			continue
+		} else if strings.HasPrefix(trimmedLine, "Alternatives:") {
+			currentSection = "alternatives"
+			continue
+		} else if strings.HasPrefix(trimmedLine, "Decision_Logic:") {
+			currentSection = "decision_logic"
+			reasoning.DecisionLogic = strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
+			continue
+		} else if strings.HasPrefix(trimmedLine, "Confidence_Factors:") {
+			currentSection = "confidence_factors"
+			continue
+		}
+
+		// Parse content based on current section
+		switch currentSection {
+		case "observations":
+			if strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "• ") {
+				obs := strings.TrimPrefix(strings.TrimPrefix(trimmedLine, "- "), "• ")
+				reasoning.Observations = append(reasoning.Observations, obs)
+			}
+		case "analysis":
+			if strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "• ") {
+				analysis := strings.TrimPrefix(strings.TrimPrefix(trimmedLine, "- "), "• ")
+				reasoning.Analysis = append(reasoning.Analysis, analysis)
+			}
+		case "alternatives":
+			if strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "• ") {
+				alt := parseAlternative(trimmedLine)
+				reasoning.Alternatives = append(reasoning.Alternatives, alt)
+			}
+		case "confidence_factors":
+			if strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "• ") {
+				factor := parseConfidenceFactor(trimmedLine)
+				reasoning.ConfidenceFactors = append(reasoning.ConfidenceFactors, factor)
+			}
+		}
+	}
+
+	return reasoning
+}
+
+// parseAlternative parses an alternative action from the text
+func parseAlternative(text string) controller.Alternative {
+	// Expected format: - [Action]: Pros: [pros] | Cons: [cons] | Risk: [level] | Rejected: [reason]
+	text = strings.TrimPrefix(strings.TrimPrefix(text, "- "), "• ")
+
+	alt := controller.Alternative{
+		Pros:       []string{},
+		Cons:       []string{},
+		RiskLevel:  "Medium",
+		Confidence: 0.5,
+		Rejected:   true,
+	}
+
+	// Split by pipes to get different sections
+	parts := strings.Split(text, "|")
+
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if i == 0 {
+			// First part should be the action name before colon
+			if colonIdx := strings.Index(part, ":"); colonIdx > 0 {
+				alt.Action = strings.TrimSpace(part[:colonIdx])
+			} else {
+				alt.Action = part
+			}
+		} else if strings.HasPrefix(part, "Pros:") {
+			prosText := strings.TrimSpace(strings.TrimPrefix(part, "Pros:"))
+			if prosText != "" {
+				alt.Pros = []string{prosText}
+			}
+		} else if strings.HasPrefix(part, "Cons:") {
+			consText := strings.TrimSpace(strings.TrimPrefix(part, "Cons:"))
+			if consText != "" {
+				alt.Cons = []string{consText}
+			}
+		} else if strings.HasPrefix(part, "Risk:") {
+			alt.RiskLevel = strings.TrimSpace(strings.TrimPrefix(part, "Risk:"))
+		} else if strings.HasPrefix(part, "Rejected:") {
+			alt.Reason = strings.TrimSpace(strings.TrimPrefix(part, "Rejected:"))
+		}
+	}
+
+	return alt
+}
+
+// parseConfidenceFactor parses a confidence factor from the text
+func parseConfidenceFactor(text string) controller.ConfidenceFactor {
+	// Expected format: - [Factor]: [Impact] impact, Weight: [0.0-1.0], Evidence: [evidence]
+	text = strings.TrimPrefix(strings.TrimPrefix(text, "- "), "• ")
+
+	factor := controller.ConfidenceFactor{
+		Impact: "neutral",
+		Weight: 0.5,
+	}
+
+	// Split by commas to get different parts
+	parts := strings.Split(text, ",")
+
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if i == 0 {
+			// First part should be factor name and impact
+			if colonIdx := strings.Index(part, ":"); colonIdx > 0 {
+				factor.Factor = strings.TrimSpace(part[:colonIdx])
+				impactPart := strings.TrimSpace(part[colonIdx+1:])
+				if strings.Contains(impactPart, "positive") {
+					factor.Impact = "positive"
+				} else if strings.Contains(impactPart, "negative") {
+					factor.Impact = "negative"
+				}
+			}
+		} else if strings.HasPrefix(part, "Weight:") {
+			weightText := strings.TrimSpace(strings.TrimPrefix(part, "Weight:"))
+			fmt.Sscanf(weightText, "%f", &factor.Weight)
+		} else if strings.HasPrefix(part, "Evidence:") {
+			factor.Evidence = strings.TrimSpace(strings.TrimPrefix(part, "Evidence:"))
+		}
+	}
+
+	return factor
 }

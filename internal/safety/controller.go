@@ -323,7 +323,7 @@ func (c *Controller) getOrCreateCircuitBreaker(policyName string) *controller.Ci
 
 	// Try to store it atomically
 	actual, _ := c.circuitBreakers.LoadOrStore(policyName, cb)
-	
+
 	// Return the actual value (either the new one we stored, or an existing one)
 	return actual.(*controller.CircuitBreaker)
 }

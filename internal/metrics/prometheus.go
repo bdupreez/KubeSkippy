@@ -16,13 +16,13 @@ import (
 var (
 	// validLabelNameRegex validates Prometheus label names
 	validLabelNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-	
+
 	// labelValueEscaper escapes special characters in label values
 	labelValueEscaper = strings.NewReplacer(
-		`"`, `\"`,    // Escape quotes
-		`\`, `\\`,    // Escape backslashes
-		"\n", `\n`,   // Escape newlines
-		"\t", `\t`,   // Escape tabs
+		`"`, `\"`, // Escape quotes
+		`\`, `\\`, // Escape backslashes
+		"\n", `\n`, // Escape newlines
+		"\t", `\t`, // Escape tabs
 	)
 )
 
@@ -193,7 +193,7 @@ func escapeLabelValue(value string) string {
 // BuildQuery helps construct common PromQL queries safely
 func BuildQuery(metricType string, labels map[string]string) string {
 	// This is a simplified query builder with security validation
-	
+
 	baseQuery := ""
 	switch metricType {
 	case "pod_cpu":
@@ -215,12 +215,12 @@ func BuildQuery(metricType string, labels map[string]string) string {
 				log.Log.Info("Invalid label name, skipping", "label", k)
 				continue
 			}
-			
+
 			// Escape label value and add to filters
 			escapedValue := escapeLabelValue(v)
 			filters = append(filters, fmt.Sprintf(`%s="%s"`, k, escapedValue))
 		}
-		
+
 		if len(filters) > 0 {
 			filterStr := strings.Join(filters, ",")
 			// Insert filters into the query safely

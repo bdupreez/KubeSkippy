@@ -226,7 +226,7 @@ func NewDefaultConfig() *Config {
 		},
 		AI: AIConfig{
 			Provider:          "ollama",
-			Model:             "llama2:13b",
+			Model:             "llama2:7b",
 			Endpoint:          "http://ollama:11434",
 			Timeout:           30 * time.Second,
 			MaxTokens:         2048,

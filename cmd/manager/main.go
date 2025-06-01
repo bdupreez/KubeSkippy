@@ -237,13 +237,13 @@ func main() {
 
 // registerMetrics registers custom Prometheus metrics
 func registerMetrics() {
-	// Register healing action metrics
+	// Register healing action metrics (with trigger_type label for compatibility)
 	healingActionsTotal := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "kubeskippy_healing_actions_total",
 			Help: "Total number of healing actions taken",
 		},
-		[]string{"action_type", "namespace", "status"},
+		[]string{"action_type", "namespace", "status", "trigger_type"},
 	)
 	metrics.Registry.MustRegister(healingActionsTotal)
 
@@ -277,4 +277,48 @@ func registerMetrics() {
 		[]string{"result"},
 	)
 	metrics.Registry.MustRegister(safetyValidationsTotal)
+
+	// Register AI reasoning metrics
+	aiReasoningStepsTotal := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kubeskippy_ai_reasoning_steps_total",
+			Help: "Total number of AI reasoning steps performed",
+		},
+		[]string{"model", "step_type"},
+	)
+	metrics.Registry.MustRegister(aiReasoningStepsTotal)
+
+	aiDecisionConfidence := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kubeskippy_ai_decision_confidence",
+			Help:    "AI decision confidence levels",
+			Buckets: []float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+		},
+		[]string{"model", "action_type"},
+	)
+	metrics.Registry.MustRegister(aiDecisionConfidence)
+
+	aiAlternativesConsidered := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kubeskippy_ai_alternatives_considered_total",
+			Help: "Total number of alternatives considered by AI",
+		},
+		[]string{"model", "action_type", "rejected"},
+	)
+	metrics.Registry.MustRegister(aiAlternativesConsidered)
+
+	aiConfidenceFactors := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kubeskippy_ai_confidence_factors_total",
+			Help: "Total number of confidence factors analyzed by AI",
+		},
+		[]string{"model", "factor_type", "impact"},
+	)
+	metrics.Registry.MustRegister(aiConfidenceFactors)
+
+	// Set AI metrics references for the metrics package
+	kubemetrics.SetAIMetrics(aiReasoningStepsTotal, aiAlternativesConsidered, aiConfidenceFactors, aiDecisionConfidence)
+
+	// Set healing actions metric for the controller package
+	controller.SetHealingActionsMetric(healingActionsTotal)
 }

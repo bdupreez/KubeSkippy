@@ -49,19 +49,10 @@ data:
     
     # Scrape KubeSkippy operator metrics
     - job_name: 'kubeskippy'
-      kubernetes_sd_configs:
-      - role: endpoints
-        namespaces:
-          names:
-          - kubeskippy-system
-      relabel_configs:
-      - source_labels: [__meta_kubernetes_service_name]
-        action: keep
-        regex: kubeskippy-controller-metrics
-      - source_labels: [__address__]
-        target_label: __address__
-        regex: (.+)
-        replacement: $1
+      static_configs:
+      - targets: ['kubeskippy-controller-manager-metrics.kubeskippy-system:8080']
+      scrape_interval: 30s
+      metrics_path: /metrics
     
     # Scrape demo apps that expose metrics
     - job_name: 'demo-apps'

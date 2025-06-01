@@ -1,184 +1,398 @@
 #!/bin/bash
+set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
-
-echo -e "${BLUE}🚀 KubeSkippy Continuous AI & Predictive Healing Demo${NC}"
-echo "=========================================================="
+echo "🤖 Starting Continuous AI Demo - Generating Resource Pressure"
+echo "============================================================="
+echo "🎯 This script creates continuous resource pressure to trigger AI analysis"
+echo "📊 Watch the Grafana dashboard populate with real AI reasoning data"
 echo ""
 
-# Check if demo is running
-if ! kubectl get ns demo-apps &>/dev/null; then
-    echo -e "${RED}❌ Demo not running. Please run:${NC}"
-    echo "   ./setup.sh --with-monitoring"
-    echo "   ./deploy-continuous-ai.sh"
+# Check if cluster is ready
+if ! kubectl cluster-info >/dev/null 2>&1; then
+    echo "❌ Kubernetes cluster not accessible. Run ./bulletproof-ai-setup.sh first"
     exit 1
 fi
 
-echo -e "${CYAN}✨ Enhanced AI Features Now Active:${NC}"
-echo "─────────────────────────────────────"
+# Check if KubeSkippy is deployed
+if ! kubectl get deployment kubeskippy-controller-manager -n kubeskippy-system >/dev/null 2>&1; then
+    echo "❌ KubeSkippy operator not found. Run ./bulletproof-ai-setup.sh first"
+    exit 1
+fi
+
+echo "✅ Prerequisites met - starting continuous demo"
 echo ""
 
-echo -e "${PURPLE}🔮 Predictive AI Capabilities:${NC}"
-echo "• Early intervention at 60-70% thresholds (vs traditional 80-90%)"
-echo "• Trend-based failure prediction with 5-minute horizon"
-echo "• Multi-metric correlation analysis for better accuracy"
-echo "• Proactive scaling before resource exhaustion"
-echo "• Cascade failure prevention with early warning system"
+# Deploy continuous pressure applications
+echo "🚀 Deploying continuous pressure applications..."
+
+cat > continuous-pressure-apps.yaml << 'EOF'
+# Continuous Memory Degradation App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-memory-degradation
+  namespace: demo-apps
+  labels:
+    app: continuous-memory-degradation
+    demo-type: continuous-pressure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: continuous-memory-degradation
+  template:
+    metadata:
+      labels:
+        app: continuous-memory-degradation
+    spec:
+      containers:
+      - name: memory-degrader
+        image: busybox
+        command: 
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting continuous memory degradation..."
+          # Start with small allocation, gradually increase
+          i=1
+          while true; do
+            echo "Memory allocation cycle $i - allocating memory..."
+            
+            # Create memory pressure by allocating and holding memory
+            dd if=/dev/zero of=/tmp/memfile_$i bs=10M count=1 2>/dev/null || true
+            
+            # Hold for 30 seconds to trigger policy evaluation
+            sleep 30
+            
+            # Occasionally clean up to create cycles
+            if [ $((i % 4)) -eq 0 ]; then
+              echo "Cleaning up memory files..."
+              rm -f /tmp/memfile_* 2>/dev/null || true
+              sleep 10
+            fi
+            
+            i=$((i + 1))
+            
+            # Reset counter to prevent infinite growth
+            if [ $i -gt 20 ]; then
+              i=1
+              rm -f /tmp/memfile_* 2>/dev/null || true
+            fi
+          done
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "50m"
+          limits:
+            memory: "500Mi"
+            cpu: "200m"
+---
+# Continuous CPU Oscillation App  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-cpu-oscillation
+  namespace: demo-apps
+  labels:
+    app: continuous-cpu-oscillation
+    demo-type: continuous-pressure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: continuous-cpu-oscillation
+  template:
+    metadata:
+      labels:
+        app: continuous-cpu-oscillation
+    spec:
+      containers:
+      - name: cpu-oscillator
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting continuous CPU oscillation..."
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            echo "CPU cycle $cycle - creating CPU pressure..."
+            
+            # High CPU phase - stress the CPU for 45 seconds
+            echo "High CPU phase..."
+            timeout 45s sh -c 'while true; do :; done' &
+            cpu_pid=$!
+            
+            # Wait for pressure to build and trigger policy evaluation
+            sleep 50
+            
+            # Kill CPU stress
+            kill $cpu_pid 2>/dev/null || true
+            
+            # Low CPU phase - rest for 30 seconds  
+            echo "Low CPU phase..."
+            sleep 30
+            
+            # Medium CPU phase
+            echo "Medium CPU phase..."
+            timeout 20s sh -c 'for i in $(seq 1 1000000); do echo $i > /dev/null; done' &
+            sleep 25
+            
+            echo "Completed cycle $cycle"
+          done
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "100m"
+          limits:
+            memory: "100Mi"
+            cpu: "800m"
+---
+# Flaky Network App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaky-network-app
+  namespace: demo-apps
+  labels:
+    app: flaky-network-app
+    demo-type: continuous-pressure
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flaky-network-app
+  template:
+    metadata:
+      labels:
+        app: flaky-network-app
+    spec:
+      containers:
+      - name: flaky-service
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting flaky network service..."
+          # Start nginx in background
+          nginx -g 'daemon off;' &
+          nginx_pid=$!
+          
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            echo "Network flaky cycle $cycle"
+            
+            # Normal operation for 60 seconds
+            echo "Normal operation phase..."
+            sleep 60
+            
+            # Simulate network issues by stopping nginx
+            echo "Simulating network failure..."
+            kill $nginx_pid 2>/dev/null || true
+            sleep 20
+            
+            # Restart nginx
+            echo "Recovering from network failure..."
+            nginx -g 'daemon off;' &
+            nginx_pid=$!
+            sleep 10
+            
+            echo "Completed flaky cycle $cycle"
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaky-network-app
+  namespace: demo-apps
+spec:
+  selector:
+    app: flaky-network-app
+  ports:
+  - port: 80
+    targetPort: 80
+---
+# Random Crasher App
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: random-crasher
+  namespace: demo-apps
+  labels:
+    app: random-crasher
+    demo-type: continuous-pressure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: random-crasher
+  template:
+    metadata:
+      labels:
+        app: random-crasher
+    spec:
+      containers:
+      - name: crasher
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting random crasher..."
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            
+            # Run normally for a random time (2-8 minutes)
+            runtime=$((120 + RANDOM % 360))
+            echo "Running normally for ${runtime} seconds (cycle $cycle)..."
+            sleep $runtime
+            
+            # Decide randomly whether to crash or continue
+            crash_chance=$((RANDOM % 100))
+            if [ $crash_chance -lt 30 ]; then
+              echo "Simulating crash in cycle $cycle..."
+              exit 1
+            else
+              echo "Continuing cycle $cycle..."
+            fi
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+      restartPolicy: Always
+EOF
+
+kubectl apply -f continuous-pressure-apps.yaml
+
+echo "✅ Continuous pressure applications deployed!"
 echo ""
 
-echo -e "${YELLOW}🔄 Continuous Failure Scenarios:${NC}"
-echo "• Memory degradation cycles (3-minute cycles, 10-second steps)"
-echo "• CPU oscillation patterns (3-minute waves, predictable spikes)"
-echo "• Network degradation simulation (4-minute cycles)"
-echo "• Chaos engineering (random failures every 30-120 seconds)"
+# Update continuous apps to have labels that match the existing AI policy
+echo "🏷️ Updating continuous apps to match existing AI policy..."
+
+# Update apps to have the correct labels for the existing ai-driven-healing policy
+kubectl patch deployment continuous-memory-degradation -n demo-apps --type='merge' -p='
+{
+  "metadata": {
+    "labels": {"demo": "kubeskippy", "issue": "memory-leak"}
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "labels": {"demo": "kubeskippy", "issue": "memory-leak"}
+      }
+    }
+  }
+}'
+
+kubectl patch deployment continuous-cpu-oscillation -n demo-apps --type='merge' -p='
+{
+  "metadata": {
+    "labels": {"demo": "kubeskippy", "issue": "cpu-spike"}
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "labels": {"demo": "kubeskippy", "issue": "cpu-spike"}
+      }
+    }
+  }
+}'
+
+kubectl patch deployment random-crasher -n demo-apps --type='merge' -p='
+{
+  "metadata": {
+    "labels": {"demo": "kubeskippy", "issue": "crashloop"}
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "labels": {"demo": "kubeskippy", "issue": "crashloop"}
+      }
+    }
+  }
+}'
+
+kubectl patch deployment flaky-network-app -n demo-apps --type='merge' -p='
+{
+  "metadata": {
+    "labels": {"demo": "kubeskippy", "issue": "service-degradation"}
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "labels": {"demo": "kubeskippy", "issue": "service-degradation"}
+      }
+    }
+  }
+}'
+
+echo "✅ Continuous healing policies deployed!"
 echo ""
 
-echo -e "${GREEN}🧠 AI vs Traditional Healing:${NC}"
-echo "• AI intervenes at 70% degradation vs 90% traditional"
-echo "• Predictive actions prevent failures vs reactive repairs"
-echo "• Multi-dimensional pattern recognition vs single-metric rules"
-echo "• Confidence-based decision making vs rigid thresholds"
-echo ""
+# Wait for applications to start and create pressure
+echo "⏳ Waiting for applications to start creating pressure..."
+sleep 30
 
-echo -e "${BLUE}📊 Current System Status:${NC}"
-echo "─────────────────────────"
+# Monitor and provide status
+echo "📊 Continuous AI Demo Status:"
+echo "=============================="
+echo ""
+echo "🎯 Applications generating pressure:"
+kubectl get pods -n demo-apps -l demo-type=continuous-pressure --no-headers
 
-# Show current applications
-echo -e "\n${YELLOW}Continuous Failure Applications:${NC}"
-kubectl get deployments -n demo-apps | grep continuous | while read line; do
-    name=$(echo $line | awk '{print $1}')
-    ready=$(echo $line | awk '{print $2}')
-    
-    if [[ "$name" == *"memory"* ]]; then
-        echo -e "💾 ${PURPLE}$name${NC}: $ready pods (memory degradation cycles)"
-    elif [[ "$name" == *"cpu"* ]]; then
-        echo -e "🔥 ${RED}$name${NC}: $ready pods (CPU oscillation patterns)"
-    elif [[ "$name" == *"network"* ]]; then
-        echo -e "🌐 ${BLUE}$name${NC}: $ready pods (network degradation)"
-    fi
-done
+echo ""
+echo "🏥 Active healing policies:"
+kubectl get healingpolicies -n demo-apps --no-headers
 
-# Show chaos monkey
-chaos_pods=$(kubectl get pods -n demo-apps -l app=chaos-monkey-component --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
-echo -e "🐒 ${CYAN}chaos-monkey-component${NC}: $chaos_pods pod (random failure injection)"
+echo ""
+echo "⚡ Recent healing actions (will increase over time):"
+kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | tail -5 || echo "No actions yet - will appear as pressure builds"
 
-# Show healing policies
-echo -e "\n${YELLOW}AI Healing Policies:${NC}"
-kubectl get healingpolicies -n demo-apps | grep -E "(ai|predictive|continuous)" | while read line; do
-    name=$(echo $line | awk '{print $1}')
-    mode=$(echo $line | awk '{print $2}')
-    
-    if [[ "$name" == *"predictive"* ]]; then
-        echo -e "🔮 ${PURPLE}$name${NC}: $mode (early intervention)"
-    elif [[ "$name" == *"continuous"* ]]; then
-        echo -e "🔄 ${CYAN}$name${NC}: $mode (continuous monitoring)"
-    elif [[ "$name" == *"ai"* ]]; then
-        echo -e "🧠 ${GREEN}$name${NC}: $mode (AI-driven)"
-    fi
-done
+echo ""
+echo "🤖 AI Analysis Activity:"
+echo "========================"
+echo "📈 Monitor AI reasoning metrics at: http://localhost:3000"
+echo "📊 Check Prometheus metrics at: http://localhost:9090"
+echo ""
+echo "🔍 Live monitoring commands:"
+echo "  Watch healing actions: kubectl get healingactions -n demo-apps -w"
+echo "  Monitor operator logs:  kubectl logs -f -n kubeskippy-system deployment/kubeskippy-controller-manager"
+echo "  Check app status:      kubectl get pods -n demo-apps -w"
+echo ""
+echo "📝 Expected behavior:"
+echo "  • Memory degradation app will gradually consume memory"
+echo "  • CPU oscillation app will create CPU pressure cycles"  
+echo "  • Flaky network app will simulate service interruptions"
+echo "  • Random crasher will occasionally crash and restart"
+echo "  • KubeSkippy AI will analyze and create healing actions"
+echo "  • Grafana dashboard will populate with AI reasoning data"
+echo ""
+echo "✅ Continuous AI demo is now running!"
+echo "🎯 Check the Grafana dashboard in 2-3 minutes to see AI reasoning data"
+echo ""
+echo "🛑 To stop the demo: kubectl delete -f continuous-pressure-apps.yaml && kubectl delete -f continuous-healing-policies.yaml"
 
-# Show activity summary
-echo -e "\n${YELLOW}Healing Activity Summary:${NC}"
-total_actions=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | wc -l)
-ai_actions=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | grep -i ai | wc -l)
-recent_actions=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | head -5 | wc -l)
+# Save cleanup files for later
+mv continuous-pressure-apps.yaml /tmp/
+mv continuous-healing-policies.yaml /tmp/
 
-echo -e "📊 Total healing actions: ${GREEN}$total_actions${NC}"
-echo -e "🧠 AI-driven actions: ${BLUE}$ai_actions${NC}"
-echo -e "⚡ Recent actions: ${YELLOW}$recent_actions${NC}"
-
-echo -e "\n${PURPLE}🎯 Demo Highlights to Observe:${NC}"
-echo "─────────────────────────────────"
 echo ""
-echo "1. 🧠 Watch AI predict failures before they happen (70% vs 90% thresholds)"
-echo "2. 🔄 Observe continuous healing preventing cascade failures"
-echo "3. 📈 See trend analysis detecting degradation patterns early"
-echo "4. ⚡ Notice faster intervention times with predictive AI"
-echo "5. 🎯 Compare AI success rates vs traditional rule-based healing"
-echo "6. 🤖 Experience realistic failure scenarios from chaos engineering"
-
-echo -e "\n${GREEN}🎬 Monitoring Options:${NC}"
-echo "─────────────────────"
-echo ""
-echo -e "📊 ${GREEN}Enhanced Grafana Dashboard:${NC}"
-echo "   http://localhost:3000/d/kubeskippy-enhanced"
-echo "   • 🧠 AI Intelligence Dashboard section"
-echo "   • 🔮 Predictive AI & Continuous Healing section"
-echo ""
-echo -e "⚡ ${GREEN}Live Terminal Monitoring:${NC}"
-echo "   ./monitor.sh"
-echo ""
-echo -e "🔍 ${GREEN}Specific Component Logs:${NC}"
-echo "   kubectl logs -f deployment/continuous-memory-degradation-app -n demo-apps"
-echo "   kubectl logs -f deployment/chaos-monkey-component -n demo-apps"
-echo ""
-echo -e "🎯 ${GREEN}Healing Action Tracking:${NC}"
-echo "   kubectl get healingactions -n demo-apps -w"
-echo "   kubectl get healingactions -n demo-apps | grep predictive"
-
-echo -e "\n${BLUE}💡 Key Innovation: Predictive vs Reactive Healing${NC}"
-echo "──────────────────────────────────────────────────"
-echo ""
-echo -e "${YELLOW}Traditional Reactive Healing:${NC}"
-echo "• Waits for 80-90% resource utilization before acting"
-echo "• Responds after failures occur"
-echo "• Single-metric based decisions"
-echo "• Risk of cascade failures"
-echo ""
-echo -e "${GREEN}AI Predictive Healing:${NC}"
-echo "• Intervenes at 60-70% utilization (early warning)"
-echo "• Predicts failures before they happen"
-echo "• Multi-metric correlation analysis"
-echo "• Prevents cascade failures proactively"
-echo ""
-
-echo -e "${CYAN}🚀 Enhanced Demo is Ready for Presentation!${NC}"
-echo ""
-echo "This demo now showcases:"
-echo "• Clear AI superiority over traditional rule-based healing"
-echo "• Predictive failure prevention vs reactive repair"
-echo "• Continuous healing scenarios with realistic failure patterns"
-echo "• Professional dashboard visualization of AI intelligence"
-echo ""
-echo -e "The demo answers: ${YELLOW}\"Why is AI-powered healing better?\"${NC} with"
-echo "quantifiable evidence and real-time demonstration."
-echo ""
-echo -e "Press ${YELLOW}Enter${NC} to start live monitoring or ${YELLOW}Ctrl+C${NC} to exit..."
-read -r
-
-echo -e "\n${PURPLE}🔬 Live Continuous AI Monitor${NC}"
-echo "──────────────────────────────"
-echo ""
-echo "Watch for predictive interventions, trend analysis, and early warnings..."
-echo ""
-
-# Live monitoring loop
-while true; do
-    # Get action counts
-    total=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | wc -l)
-    ai=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | grep -i ai | wc -l)
-    predictive=$(kubectl get healingactions -n demo-apps --no-headers 2>/dev/null | grep predictive | wc -l)
-    
-    # Get app status
-    memory_pods=$(kubectl get pods -n demo-apps -l app=continuous-memory-degradation-app --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
-    cpu_pods=$(kubectl get pods -n demo-apps -l app=continuous-cpu-oscillation-app --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
-    network_pods=$(kubectl get pods -n demo-apps -l app=continuous-network-degradation-app --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
-    chaos_pods=$(kubectl get pods -n demo-apps -l app=chaos-monkey-component --field-selector=status.phase=Running --no-headers 2>/dev/null | wc -l)
-    
-    # Get policy status
-    policies=$(kubectl get healingpolicies -n demo-apps --no-headers 2>/dev/null | grep -E "(ai|predictive|continuous)" | wc -l)
-    
-    # Show real-time status
-    timestamp=$(date "+%H:%M:%S")
-    printf "\r${CYAN}[$timestamp]${NC} ${GREEN}🎯 Total: %d${NC} | ${BLUE}🧠 AI: %d${NC} | ${PURPLE}🔮 Predictive: %d${NC} | ${YELLOW}📊 Policies: %d${NC} | ${CYAN}🧪 Apps: %d/%d/%d/%d${NC}" \
-           "$total" "$ai" "$predictive" "$policies" "$memory_pods" "$cpu_pods" "$network_pods" "$chaos_pods"
-    
-    sleep 3
-done
+echo "🔄 Demo will run continuously until stopped"

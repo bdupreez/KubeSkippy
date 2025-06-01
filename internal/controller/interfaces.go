@@ -170,6 +170,7 @@ type AIAnalysis struct {
 	Recommendations []AIRecommendation
 	Confidence      float64
 	ModelVersion    string
+	ReasoningSteps  []ReasoningStep
 }
 
 // AIIssue represents an issue identified by AI
@@ -190,4 +191,42 @@ type AIRecommendation struct {
 	Reason     string
 	Risk       string
 	Confidence float64
+	Reasoning  DecisionReasoning
+}
+
+// ReasoningStep represents a step in the AI's decision process
+type ReasoningStep struct {
+	Step        int
+	Description string
+	Evidence    []string
+	Confidence  float64
+	Timestamp   time.Time
+}
+
+// DecisionReasoning contains detailed reasoning for a specific recommendation
+type DecisionReasoning struct {
+	Observations      []string
+	Analysis          []string
+	Alternatives      []Alternative
+	DecisionLogic     string
+	ConfidenceFactors []ConfidenceFactor
+}
+
+// Alternative represents an alternative action considered by the AI
+type Alternative struct {
+	Action     string
+	Pros       []string
+	Cons       []string
+	RiskLevel  string
+	Confidence float64
+	Rejected   bool
+	Reason     string
+}
+
+// ConfidenceFactor represents factors that influence confidence level
+type ConfidenceFactor struct {
+	Factor   string
+	Impact   string // "positive", "negative", "neutral"
+	Weight   float64
+	Evidence string
 }
