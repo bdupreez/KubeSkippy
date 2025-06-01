@@ -1,0 +1,49 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-memory-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["memory-leak"]
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  - name: high-memory-usage
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 70
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "10m"
+  
+  actions:
+  - name: restart-pods
+    type: restart
+    description: "Restart pods with memory issues"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 20
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+  
+  mode: "automatic"

@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: kubeskippy-ollama
+
+namespace: kubeskippy-system
+
+resources:
+- deployment.yaml
+- service.yaml
+- model-loader-job.yaml
+
+commonLabels:
+  component: ai-backend
+  managed-by: kubeskippy-demo

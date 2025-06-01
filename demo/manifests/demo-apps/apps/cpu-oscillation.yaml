@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-cpu-oscillation
+  namespace: demo-apps
+  labels:
+    app: continuous-cpu-oscillation
+    demo: kubeskippy
+    issue: cpu-spike
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: continuous-cpu-oscillation
+  template:
+    metadata:
+      labels:
+        app: continuous-cpu-oscillation
+        demo: kubeskippy
+        issue: cpu-spike
+    spec:
+      containers:
+      - name: cpu-oscillator
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting realistic CPU oscillation that creates measurable pressure..."
+          
+          cpu_stress() {
+            local duration=$1
+            local intensity=$2
+            echo "Creating CPU stress for ${duration}s at ${intensity}% intensity"
+            
+            # Create multiple CPU stress processes based on intensity
+            local num_procs=$((intensity / 25))  # 25%, 50%, 75%, 100% -> 1,2,3,4 processes
+            if [ $num_procs -lt 1 ]; then num_procs=1; fi
+            if [ $num_procs -gt 4 ]; then num_procs=4; fi
+            
+            echo "Starting $num_procs CPU stress processes"
+            
+            for i in $(seq 1 $num_procs); do
+              # Create CPU-intensive computation that actually uses CPU cycles
+              (
+                end_time=$(($(date +%s) + duration))
+                counter=0
+                while [ $(date +%s) -lt $end_time ]; do
+                  # CPU-intensive mathematical operations
+                  counter=$((counter + 1))
+                  result=$(echo "scale=10; sqrt($counter) * 3.14159 / 2.71828" | bc -l 2>/dev/null || echo $counter)
+                  
+                  # Modulate intensity - brief pauses for lower intensity
+                  if [ $intensity -lt 100 ]; then
+                    case $intensity in
+                      25) usleep 750000 ;;  # 75% idle time
+                      50) usleep 500000 ;;  # 50% idle time  
+                      75) usleep 250000 ;;  # 25% idle time
+                    esac
+                  fi
+                done
+              ) &
+            done
+            
+            # Wait for all processes to complete
+            wait
+            echo "CPU stress completed"
+          }
+          
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            echo "=== CPU pressure cycle $cycle ==="
+            
+            # Oscillating intensity pattern: 25% -> 50% -> 75% -> 100% -> rest
+            case $((cycle % 5)) in
+              1) intensity=25 ;;
+              2) intensity=50 ;;
+              3) intensity=75 ;;
+              4) intensity=100 ;;
+              0) intensity=0 ;;  # Rest cycle
+            esac
+            
+            if [ $intensity -eq 0 ]; then
+              echo "Rest phase - no CPU stress"
+              sleep 60
+            else
+              echo "High CPU phase - ${intensity}% intensity"
+              cpu_stress 90 $intensity
+              
+              # Brief cool-down
+              sleep 30
+            fi
+            
+            echo "Completed cycle $cycle"
+          done
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "100m"
+          limits:
+            memory: "100Mi"
+            cpu: "900m"

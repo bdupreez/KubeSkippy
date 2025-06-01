@@ -1,0 +1,55 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-strategic-simple
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Simple AI Strategic Healing"
+    kubeskippy.io/confidence: "high"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  - name: ai-strategic-trigger
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 30
+      operator: ">"
+      duration: "1m"
+    cooldownPeriod: "2m"
+  
+  actions:
+  - name: ai-strategic-delete
+    type: delete
+    description: "AI Strategic Delete"
+    priority: 5
+    requiresApproval: false
+  
+  - name: ai-strategic-scale
+    type: scale
+    description: "AI Strategic Scale"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+    priority: 10
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 20
+    requireHealthCheck: false
+  
+  mode: "automatic"

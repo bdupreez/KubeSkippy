@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuous-memory-degradation
+  namespace: demo-apps
+  labels:
+    app: continuous-memory-degradation
+    demo: kubeskippy
+    issue: memory-leak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: continuous-memory-degradation
+  template:
+    metadata:
+      labels:
+        app: continuous-memory-degradation
+        demo: kubeskippy
+        issue: memory-leak
+    spec:
+      containers:
+      - name: memory-degrader
+        image: busybox
+        command: 
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting continuous memory degradation that creates real pressure..."
+          
+          # Function to allocate memory using a simple C program compiled inline
+          allocate_memory() {
+            local size_mb=$1
+            echo "Allocating ${size_mb}MB of memory..."
+            
+            # Create and run a memory allocator
+            cat > /tmp/mem_alloc.c << 'EOF'
+          #include <stdio.h>
+          #include <stdlib.h>
+          #include <string.h>
+          #include <unistd.h>
+          
+          int main(int argc, char *argv[]) {
+              if (argc != 2) {
+                  fprintf(stderr, "Usage: %s <size_in_mb>\n", argv[0]);
+                  return 1;
+              }
+              
+              long size_mb = atol(argv[1]);
+              long size_bytes = size_mb * 1024 * 1024;
+              
+              printf("Allocating %ld MB (%ld bytes)\n", size_mb, size_bytes);
+              
+              char *ptr = malloc(size_bytes);
+              if (!ptr) {
+                  fprintf(stderr, "Failed to allocate memory\n");
+                  return 1;
+              }
+              
+              // Actually touch the memory to make it count
+              memset(ptr, 'A', size_bytes);
+              
+              printf("Memory allocated and touched. Sleeping...\n");
+              sleep(60);  // Hold memory for 60 seconds
+              
+              free(ptr);
+              printf("Memory freed\n");
+              return 0;
+          }
+          EOF
+            
+            # Compile and run (if gcc available, otherwise use shell method)
+            if command -v gcc >/dev/null 2>&1; then
+              gcc -o /tmp/mem_alloc /tmp/mem_alloc.c && /tmp/mem_alloc $size_mb &
+            else
+              # Fallback: use shell memory allocation
+              dd if=/dev/zero of=/tmp/memfile_${size_mb} bs=1M count=$size_mb 2>/dev/null &
+              sleep 60
+              rm -f /tmp/memfile_${size_mb} 2>/dev/null || true
+            fi
+          }
+          
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            echo "=== Memory pressure cycle $cycle ==="
+            
+            # Progressive memory allocation: start low, build up pressure
+            base_memory=20
+            pressure_memory=$((base_memory + (cycle % 5) * 15))
+            
+            echo "Creating memory pressure: ${pressure_memory}MB"
+            allocate_memory $pressure_memory
+            
+            # Wait for memory to be allocated and measured
+            sleep 45
+            
+            # Cleanup every few cycles
+            if [ $((cycle % 4)) -eq 0 ]; then
+              echo "Cleanup cycle - releasing memory"
+              pkill -f mem_alloc 2>/dev/null || true
+              rm -f /tmp/memfile_* /tmp/mem_alloc* 2>/dev/null || true
+              sleep 30
+            fi
+            
+            # Reset cycle to prevent unlimited growth
+            if [ $cycle -gt 20 ]; then
+              cycle=0
+              echo "Resetting cycle counter"
+            fi
+          done
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "50m"
+          limits:
+            memory: "200Mi"
+            cpu: "200m"

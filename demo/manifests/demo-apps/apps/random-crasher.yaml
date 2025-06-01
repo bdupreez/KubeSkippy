@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: random-crasher
+  namespace: demo-apps
+  labels:
+    app: random-crasher
+    demo: kubeskippy
+    issue: crashloop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: random-crasher
+  template:
+    metadata:
+      labels:
+        app: random-crasher
+        demo: kubeskippy
+        issue: crashloop
+    spec:
+      containers:
+      - name: crasher
+        image: busybox
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting random crasher..."
+          cycle=0
+          while true; do
+            cycle=$((cycle + 1))
+            runtime=$((180 + RANDOM % 240))
+            echo "Running normally for ${runtime} seconds (cycle $cycle)..."
+            sleep $runtime
+            crash_chance=$((RANDOM % 100))
+            if [ $crash_chance -lt 40 ]; then
+              echo "Simulating crash in cycle $cycle..."
+              exit 1
+            fi
+          done
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+      restartPolicy: Always

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: kubeskippy-demo-apps
+
+namespace: demo-apps
+
+resources:
+- apps/memory-degradation.yaml
+- apps/cpu-oscillation.yaml
+- apps/random-crasher.yaml
+- apps/flaky-web-app.yaml
+- apps/memory-leak-app.yaml
+- apps/crashloop-app.yaml
+- apps/chaos-monkey-component.yaml
+- apps/stress-generator-app.yaml
+- policies/ai-driven-healing.yaml
+- policies/ai-memory-healing.yaml
+- policies/ai-cpu-healing.yaml
+- policies/ai-strategic-simple.yaml
+
+commonLabels:
+  component: demo-apps
+  managed-by: kubeskippy-demo

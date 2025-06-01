@@ -1,0 +1,51 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-cpu-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["cpu-spike"]
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  - name: high-cpu-usage
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 80
+      operator: ">"
+      duration: "5m"
+    cooldownPeriod: "10m"
+  
+  actions:
+  - name: scale-up-deployment
+    type: scale
+    description: "Scale up when CPU usage is high"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+    priority: 20
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 10
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+  
+  mode: "automatic"

@@ -1,0 +1,96 @@
+apiVersion: kubeskippy.io/v1alpha1
+kind: HealingPolicy
+metadata:
+  name: ai-driven-healing
+  namespace: demo-apps
+  annotations:
+    kubeskippy.io/ai-enabled: "true"
+    kubeskippy.io/description: "Enhanced AI healing with continuous monitoring and pattern recognition"
+    kubeskippy.io/confidence: "high"
+    kubeskippy.io/reasoning: "Continuous AI analysis of application behavior patterns"
+spec:
+  selector:
+    labelSelector:
+      matchExpressions:
+      - key: issue
+        operator: In
+        values: ["memory-leak", "cpu-spike", "crashloop", "intermittent-failures", "complex-pattern", "service-degradation"]
+      - key: demo
+        operator: In
+        values: ["kubeskippy"]
+    resources:
+      - apiVersion: v1
+        kind: Pod
+      - apiVersion: apps/v1
+        kind: Deployment
+  
+  triggers:
+  - name: high-cpu-usage
+    type: metric
+    metricTrigger:
+      query: "cpu_usage_percent"
+      threshold: 80
+      operator: ">"
+      duration: "5m"
+    cooldownPeriod: "10m"
+  
+  - name: high-memory-usage
+    type: metric
+    metricTrigger:
+      query: "memory_usage_percent"
+      threshold: 70
+      operator: ">"
+      duration: "2m"
+    cooldownPeriod: "10m"
+  
+  - name: high-error-rate
+    type: metric
+    metricTrigger:
+      query: "error_rate"
+      threshold: 10
+      operator: ">"
+      duration: "3m"
+    cooldownPeriod: "5m"
+  
+  - name: pod-restart-events
+    type: event
+    eventTrigger:
+      reason: "Restarted"
+      type: "Warning"
+      count: 3
+      window: "15m"
+    cooldownPeriod: "10m"
+  
+  actions:
+  - name: restart-pods
+    type: restart
+    description: "Restart pods with issues"
+    restartAction:
+      strategy: "rolling"
+      maxConcurrent: 1
+    priority: 10
+    requiresApproval: false
+  
+  - name: scale-up-deployment
+    type: scale
+    description: "Scale up when resource usage is high"
+    scaleAction:
+      direction: "up"
+      replicas: 1
+      minReplicas: 1
+      maxReplicas: 5
+    priority: 20
+    requiresApproval: false
+  
+  - name: delete-problematic-pods
+    type: delete
+    description: "Delete pods in crash loop"
+    priority: 30
+    requiresApproval: false
+  
+  safetyRules:
+    maxActionsPerHour: 10  # Increased for continuous healing scenarios
+    requireHealthCheck: true
+    healthCheckTimeout: "2m"
+  
+  mode: "automatic"
