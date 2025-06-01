@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
+	"github.com/kubeskippy/kubeskippy/internal/metrics"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -127,6 +128,15 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect metrics: %w", err)
 	}
+	
+	// Collect advanced metrics for AI analysis if available
+	var advancedMetrics interface{}
+	if advancedCollector, ok := r.MetricsCollector.(*metrics.AdvancedCollector); ok {
+		advancedMetrics, err = advancedCollector.CollectAdvancedMetrics(ctx, policy)
+		if err != nil {
+			log.Error(err, "Failed to collect advanced metrics, continuing with basic metrics")
+		}
+	}
 
 	// Check rate limits
 	if allowed, err := r.SafetyController.CheckRateLimit(ctx, policy); err != nil {
@@ -147,8 +157,27 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 			continue
 		}
 
-		// Evaluate trigger
-		triggered, reason, err := r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+		// Evaluate trigger using advanced metrics if available for AI policies
+		var triggered bool
+		var reason string
+		var err error
+		
+		// Check if this is an AI-enabled policy and we have advanced metrics
+		isAIPolicy := policy.Annotations["kubeskippy.io/ai-enabled"] == "true"
+		if isAIPolicy && advancedMetrics != nil {
+			if advancedCollector, ok := r.MetricsCollector.(*metrics.AdvancedCollector); ok {
+				if advMetrics, ok := advancedMetrics.(*metrics.AdvancedMetrics); ok {
+					triggered, reason, err = advancedCollector.EvaluateAdvancedTrigger(ctx, &trigger, advMetrics)
+				} else {
+					triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+				}
+			} else {
+				triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+			}
+		} else {
+			triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+		}
+		
 		if err != nil {
 			log.Error(err, "Failed to evaluate trigger", "trigger", trigger.Name)
 			continue
@@ -238,7 +267,26 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 			log.Info("Created healing action",
 				"action", action.Name,
 				"type", action.Spec.Action.Type,
-				"target", fmt.Sprintf("%s/%s", action.Spec.TargetResource.Kind, action.Spec.TargetResource.Name))
+				"target", fmt.Sprintf("%s/%s", action.Spec.TargetResource.Kind, action.Spec.TargetResource.Name),
+				"ai_driven", ta.IsAIBased)
+
+			// Record healing action metrics
+			if metrics.GlobalAIMetrics != nil {
+				triggerType := "traditional"
+				if ta.IsAIBased {
+					triggerType = "ai"
+				}
+				
+				metrics.GlobalAIMetrics.RecordHealingAction(
+					ctx,
+					policy.Name,
+					action.Spec.Action.Type,
+					triggerType,
+					"created",
+					action.Spec.TargetResource.Namespace,
+					ta.IsAIBased,
+				)
+			}
 
 			createdCount++
 			policy.Status.ActionsTaken++
@@ -364,9 +412,176 @@ func (r *HealingPolicyReconciler) getAIRecommendations(ctx context.Context, metr
 
 // filterActionsWithAI filters actions based on AI recommendations
 func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction, aiResult *AIAnalysis) []TriggeredAction {
-	// In a real implementation, this would match AI recommendations
-	// with triggered actions and filter based on confidence
-	return actions
+	if aiResult == nil || len(aiResult.Recommendations) == 0 {
+		log.Log.Info("No AI recommendations available, using all triggered actions")
+		return actions
+	}
+
+	log.Log.Info("Filtering actions with AI recommendations", 
+		"triggered_actions", len(actions), 
+		"ai_recommendations", len(aiResult.Recommendations))
+
+	filteredActions := []TriggeredAction{}
+	
+	// Process each AI recommendation
+	for _, recommendation := range aiResult.Recommendations {
+		// Only proceed with high-confidence recommendations
+		minConfidence := 0.7 // 70% confidence threshold
+		if recommendation.Confidence < minConfidence {
+			log.Log.Info("Skipping low confidence AI recommendation", 
+				"action", recommendation.Action, 
+				"confidence", recommendation.Confidence,
+				"threshold", minConfidence)
+			continue
+		}
+
+		// Record AI decision start
+		if metrics.GlobalAIMetrics != nil {
+			decision := &metrics.AIDecision{
+				ID:             fmt.Sprintf("ai-%d", time.Now().Unix()),
+				PolicyName:     actions[0].Resource.GetName(), // Use first action's resource as policy context
+				TriggerType:    "ai",
+				ActionType:     recommendation.Action,
+				Confidence:     recommendation.Confidence,
+				ReasoningSteps: extractReasoningSteps(recommendation),
+				Alternatives:   extractAlternatives(recommendation),
+				RiskAssessment: recommendation.Reasoning.Summary,
+				ExpectedOutcome: fmt.Sprintf("AI-driven %s with %.1f%% confidence", 
+					recommendation.Action, recommendation.Confidence*100),
+			}
+			
+			ctx := context.Background()
+			metrics.GlobalAIMetrics.StartAIDecision(ctx, decision)
+		}
+
+		// Find matching triggered actions for this AI recommendation
+		for _, action := range actions {
+			if r.matchesAIRecommendation(action, recommendation) {
+				// Mark this action as AI-driven
+				action.AIRecommendation = &recommendation
+				action.IsAIBased = true
+				filteredActions = append(filteredActions, action)
+				
+				log.Log.Info("Action approved by AI", 
+					"action", action.Action.Type,
+					"resource", action.Resource.GetName(),
+					"confidence", recommendation.Confidence,
+					"ai_reasoning", recommendation.Reasoning.Summary)
+			}
+		}
+	}
+
+	// If no AI-approved actions, fall back to highest priority traditional actions
+	if len(filteredActions) == 0 {
+		log.Log.Info("No AI-approved actions, falling back to traditional rule-based actions")
+		
+		// Sort by priority and take top 2 actions
+		sort.Slice(actions, func(i, j int) bool {
+			return actions[i].Action.Priority > actions[j].Action.Priority
+		})
+		
+		maxFallback := 2
+		if len(actions) < maxFallback {
+			maxFallback = len(actions)
+		}
+		
+		for i := 0; i < maxFallback; i++ {
+			actions[i].IsAIBased = false
+			filteredActions = append(filteredActions, actions[i])
+		}
+	}
+
+	log.Log.Info("AI filtering complete", 
+		"original_actions", len(actions),
+		"filtered_actions", len(filteredActions),
+		"ai_driven", countAIDrivenActions(filteredActions))
+
+	return filteredActions
+}
+
+// Helper functions for AI decision processing
+
+func extractReasoningSteps(recommendation Recommendation) []string {
+	steps := []string{}
+	
+	if recommendation.Reasoning.Summary != "" {
+		steps = append(steps, "analysis-"+recommendation.Reasoning.Summary[:min(50, len(recommendation.Reasoning.Summary))])
+	}
+	
+	for _, factor := range recommendation.Reasoning.ConfidenceFactors {
+		steps = append(steps, "confidence-"+factor.Factor)
+	}
+	
+	for _, alt := range recommendation.Reasoning.Alternatives {
+		if alt.Rejected {
+			steps = append(steps, "rejected-"+alt.Action)
+		}
+	}
+	
+	if len(steps) == 0 {
+		steps = append(steps, "ai-decision-"+recommendation.Action)
+	}
+	
+	return steps
+}
+
+func extractAlternatives(recommendation Recommendation) []string {
+	alternatives := []string{}
+	
+	for _, alt := range recommendation.Reasoning.Alternatives {
+		alternatives = append(alternatives, fmt.Sprintf("%s (rejected: %v)", alt.Action, alt.Rejected))
+	}
+	
+	return alternatives
+}
+
+func (r *HealingPolicyReconciler) matchesAIRecommendation(action TriggeredAction, recommendation Recommendation) bool {
+	// Simple matching based on action type
+	// In a more sophisticated implementation, this would consider resource type,
+	// namespace, labels, and other contextual factors
+	
+	actionType := action.Action.Type
+	recommendedAction := recommendation.Action
+	
+	// Direct match
+	if actionType == recommendedAction {
+		return true
+	}
+	
+	// Semantic matching
+	matches := map[string][]string{
+		"restart": {"restart", "rolling_restart", "pod_restart"},
+		"scale":   {"scale", "scale_up", "scale_down", "horizontal_scale"},
+		"delete":  {"delete", "remove", "terminate", "strategic_delete"},
+		"patch":   {"patch", "update", "modify", "configure"},
+	}
+	
+	if synonyms, exists := matches[actionType]; exists {
+		for _, synonym := range synonyms {
+			if synonym == recommendedAction {
+				return true
+			}
+		}
+	}
+	
+	return false
+}
+
+func countAIDrivenActions(actions []TriggeredAction) int {
+	count := 0
+	for _, action := range actions {
+		if action.IsAIBased {
+			count++
+		}
+	}
+	return count
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // handleDeletion handles cleanup when a policy is deleted
@@ -425,8 +640,10 @@ type EvaluationResult struct {
 
 // TriggeredAction represents an action triggered by a policy
 type TriggeredAction struct {
-	Trigger  string
-	Resource client.Object
-	Action   v1alpha1.HealingActionTemplate
-	Reason   string
+	Trigger          string
+	Resource         client.Object
+	Action           v1alpha1.HealingActionTemplate
+	Reason           string
+	IsAIBased        bool
+	AIRecommendation *Recommendation
 }

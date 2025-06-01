@@ -187,7 +187,7 @@ data:
           "pluginVersion": "8.5.0",
           "targets": [
             {
-              "expr": "sum(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*|.*strategic.*|.*cascade.*\"})",
+              "expr": "sum(kubeskippy_healing_actions_total{ai_driven=\"true\"})",
               "interval": "",
               "legendFormat": "",
               "refId": "A"
@@ -395,7 +395,7 @@ data:
           },
           "targets": [
             {
-              "expr": "rate(kubeskippy_healing_actions_total{trigger_type=~\".*ai.*|.*strategic.*|.*cascade.*\"}[5m]) or vector(0)",
+              "expr": "rate(kubeskippy_healing_actions_total{ai_driven=\"true\"}[5m]) or vector(0)",
               "interval": "",
               "legendFormat": "AI Actions Rate",
               "refId": "A"
@@ -437,13 +437,219 @@ data:
           },
           "targets": [
             {
-              "expr": "sum by (action_type) (kubeskippy_healing_actions_total{trigger_type=~\".*ai.*|.*strategic.*|.*cascade.*\"}) or vector(0)",
+              "expr": "sum by (action_type) (kubeskippy_healing_actions_total{ai_driven=\"true\"}) or vector(0)",
               "interval": "",
               "legendFormat": "{{action_type}}",
               "refId": "A"
             }
           ],
           "title": "AI Action Distribution",
+          "type": "piechart"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "red", "value": null},
+                  {"color": "yellow", "value": 70},
+                  {"color": "green", "value": 85}
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 15},
+          "id": 13,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "textMode": "auto"
+          },
+          "pluginVersion": "8.5.0",
+          "targets": [
+            {
+              "expr": "kubeskippy_ai_confidence_score * 100",
+              "interval": "",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "🧠 AI Confidence Score",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 15},
+          "id": 14,
+          "options": {
+            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "expr": "kubeskippy_ai_success_rate",
+              "interval": "",
+              "legendFormat": "AI Success Rate",
+              "refId": "A"
+            },
+            {
+              "expr": "kubeskippy_traditional_success_rate",
+              "interval": "",
+              "legendFormat": "Traditional Success Rate",
+              "refId": "B"
+            }
+          ],
+          "title": "🎯 AI vs Traditional Success Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {"type": "linear"},
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {"group": "A", "mode": "none"},
+                "thresholdsStyle": {"mode": "off"}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 21},
+          "id": 15,
+          "options": {
+            "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "expr": "kubeskippy_correlation_score",
+              "interval": "",
+              "legendFormat": "Correlation Risk Score",
+              "refId": "A"
+            },
+            {
+              "expr": "kubeskippy_system_health_score",
+              "interval": "",
+              "legendFormat": "System Health Score",
+              "refId": "B"
+            },
+            {
+              "expr": "kubeskippy_predictive_accuracy",
+              "interval": "",
+              "legendFormat": "Predictive Accuracy",
+              "refId": "C"
+            }
+          ],
+          "title": "📊 AI Intelligence Metrics",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "palette-classic"},
+              "custom": {
+                "hideFrom": {"legend": false, "tooltip": false, "vis": false}
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null},
+                  {"color": "red", "value": 80}
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 21},
+          "id": 16,
+          "options": {
+            "legend": {"displayMode": "list", "placement": "bottom"},
+            "pieType": "donut",
+            "reduceOptions": {
+              "values": false,
+              "calcs": ["lastNotNull"],
+              "fields": ""
+            },
+            "tooltip": {"mode": "single", "sort": "none"}
+          },
+          "targets": [
+            {
+              "expr": "sum by (pattern_type) (kubeskippy_pattern_detection_total)",
+              "interval": "",
+              "legendFormat": "{{pattern_type}}",
+              "refId": "A"
+            }
+          ],
+          "title": "🔍 AI Pattern Detection",
           "type": "piechart"
         },
         {
@@ -547,9 +753,9 @@ data:
           "type": "timeseries"
         },
         {
-          "title": "📈 Healing Actions & Activity",
+          "title": "📈 Healing Actions & Activity", 
           "type": "row",
-          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21},
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 27},
           "collapsed": false
         },
         {
@@ -585,7 +791,7 @@ data:
             },
             "overrides": []
           },
-          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 22},
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
           "id": 11,
           "options": {
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom"},
@@ -621,7 +827,7 @@ data:
             },
             "overrides": []
           },
-          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 22},
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
           "id": 12,
           "options": {
             "legend": {"displayMode": "list", "placement": "right"},

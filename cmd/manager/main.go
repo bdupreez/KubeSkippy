@@ -187,6 +187,10 @@ func main() {
 		setupLog.Info("AI features disabled - no provider configured")
 	}
 
+	// Initialize global AI metrics
+	kubemetrics.InitializeGlobalAIMetrics()
+	setupLog.Info("Global AI metrics initialized")
+
 	setupLog.Info("Safety controller, metrics collector, and remediation engine initialized")
 
 	// Setup controllers
