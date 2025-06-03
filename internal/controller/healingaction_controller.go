@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -250,7 +251,7 @@ func (r *HealingActionReconciler) handleInProgress(ctx context.Context, log logr
 	action.Status.Attempts++
 	action.Status.LastAttemptTime = &metav1.Time{Time: time.Now()}
 
-	var result *ActionResult
+	var result *types.ActionResult
 	var err error
 
 	if action.Spec.DryRun {

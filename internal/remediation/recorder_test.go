@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 func TestInMemoryActionRecorder(t *testing.T) {
@@ -26,7 +26,7 @@ func TestInMemoryActionRecorder(t *testing.T) {
 	}
 
 	// Create test result
-	result := &controller.ActionResult{
+	result := &kubetypes.ActionResult{
 		Success:   true,
 		Message:   "Test action completed",
 		StartTime: time.Now(),
@@ -73,7 +73,7 @@ func TestInMemoryActionRecorder(t *testing.T) {
 	// Test overwriting action
 	t.Run("overwrite action", func(t *testing.T) {
 		// Record same action again with different result
-		newResult := &controller.ActionResult{
+		newResult := &kubetypes.ActionResult{
 			Success:   false,
 			Message:   "Failed action",
 			StartTime: time.Now(),
@@ -127,7 +127,7 @@ func TestInMemoryActionRecorder_Cleanup(t *testing.T) {
 		},
 	}
 
-	result := &controller.ActionResult{
+	result := &kubetypes.ActionResult{
 		Success:   true,
 		StartTime: time.Now().Add(-200 * time.Millisecond), // Old timestamp
 	}

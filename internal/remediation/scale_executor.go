@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // ScaleExecutor handles scale actions
@@ -28,14 +28,14 @@ func NewScaleExecutor(client client.Client) *ScaleExecutor {
 }
 
 // Execute performs the scale action
-func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	startTime := time.Now()
 
 	// Get scale configuration
 	config := action.ScaleAction
 	if config == nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   "Scale action configuration is missing",
 			StartTime: startTime,
@@ -46,7 +46,7 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 	// Get current replicas
 	currentReplicas, err := s.getCurrentReplicas(target)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to get current replicas: %v", err),
 			Error:     err,
@@ -77,7 +77,7 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 			newReplicas = config.MinReplicas
 		}
 	default:
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Invalid scale direction: %s", config.Direction),
 			StartTime: startTime,
@@ -87,7 +87,7 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 
 	// Check if scaling is needed
 	if newReplicas == currentReplicas {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   true,
 			Message:   fmt.Sprintf("No scaling needed, already at %d replicas", currentReplicas),
 			StartTime: startTime,
@@ -103,7 +103,7 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 	// Perform the scaling
 	changes, err := s.scaleResource(ctx, target, newReplicas)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to scale resource: %v", err),
 			Error:     err,
@@ -118,7 +118,7 @@ func (s *ScaleExecutor) Execute(ctx context.Context, target client.Object, actio
 		"from", currentReplicas,
 		"to", newReplicas)
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success:   true,
 		Message:   fmt.Sprintf("Successfully scaled %s/%s from %d to %d replicas", target.GetNamespace(), target.GetName(), currentReplicas, newReplicas),
 		Changes:   changes,
@@ -174,10 +174,10 @@ func (s *ScaleExecutor) Validate(ctx context.Context, target client.Object, acti
 }
 
 // DryRun simulates the scale action
-func (s *ScaleExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (s *ScaleExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	// Validate the action
 	if err := s.Validate(ctx, target, action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Validation failed: %v", err),
 		}, err
@@ -188,7 +188,7 @@ func (s *ScaleExecutor) DryRun(ctx context.Context, target client.Object, action
 	// Get current replicas
 	currentReplicas, err := s.getCurrentReplicas(target)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to get current replicas: %v", err),
 		}, err
@@ -232,7 +232,7 @@ func (s *ScaleExecutor) DryRun(ctx context.Context, target client.Object, action
 		},
 	}
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success: true,
 		Message: fmt.Sprintf("Dry-run: Would scale %s/%s from %d to %d replicas", target.GetNamespace(), target.GetName(), currentReplicas, newReplicas),
 		Changes: simulatedChanges,

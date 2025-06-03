@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // DeleteExecutor handles delete actions
@@ -28,7 +28,7 @@ func NewDeleteExecutor(client client.Client) *DeleteExecutor {
 }
 
 // Execute performs the delete action
-func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	startTime := time.Now()
 
@@ -43,7 +43,7 @@ func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, acti
 	// Check if resource has finalizers
 	finalizers := target.GetFinalizers()
 	if len(finalizers) > 0 && !config.Force {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Resource has finalizers and force delete is not enabled: %v", finalizers),
 			StartTime: startTime,
@@ -109,7 +109,7 @@ func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, acti
 	if err := d.client.Delete(ctx, target, deleteOptions); err != nil {
 		if errors.IsNotFound(err) {
 			// Already deleted
-			return &controller.ActionResult{
+			return &kubetypes.ActionResult{
 				Success:   true,
 				Message:   "Resource already deleted",
 				Changes:   changes,
@@ -117,7 +117,7 @@ func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, acti
 				EndTime:   time.Now(),
 			}, nil
 		}
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to delete resource: %v", err),
 			Error:     err,
@@ -130,7 +130,7 @@ func (d *DeleteExecutor) Execute(ctx context.Context, target client.Object, acti
 	log.Info("Resource deleted successfully",
 		"resource", fmt.Sprintf("%s/%s", target.GetNamespace(), target.GetName()))
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success:   true,
 		Message:   fmt.Sprintf("Successfully deleted %s/%s", target.GetNamespace(), target.GetName()),
 		Changes:   changes,
@@ -209,10 +209,10 @@ func (d *DeleteExecutor) Validate(ctx context.Context, target client.Object, act
 }
 
 // DryRun simulates the delete action
-func (d *DeleteExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (d *DeleteExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	// Validate the action
 	if err := d.Validate(ctx, target, action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Validation failed: %v", err),
 		}, err
@@ -244,7 +244,7 @@ func (d *DeleteExecutor) DryRun(ctx context.Context, target client.Object, actio
 		message += fmt.Sprintf(" (warning: has %d dependent resources)", len(dependents))
 	}
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success: true,
 		Message: message,
 		Changes: simulatedChanges,

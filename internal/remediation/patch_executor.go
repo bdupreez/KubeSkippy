@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // PatchExecutor handles patch actions
@@ -30,14 +30,14 @@ func NewPatchExecutor(client client.Client) *PatchExecutor {
 }
 
 // Execute performs the patch action
-func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	startTime := time.Now()
 
 	// Get patch configuration
 	config := action.PatchAction
 	if config == nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   "Patch action configuration is missing",
 			StartTime: startTime,
@@ -48,7 +48,7 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 	// Create unstructured object for patching
 	unstructuredTarget, err := p.toUnstructured(target)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to convert to unstructured: %v", err),
 			Error:     err,
@@ -83,7 +83,7 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 
 		// Apply the patch
 		if err := unstructured.SetNestedField(unstructuredTarget.Object, newValue, patch.Path...); err != nil {
-			return &controller.ActionResult{
+			return &kubetypes.ActionResult{
 				Success:   false,
 				Message:   fmt.Sprintf("Failed to set field %s: %v", pathToString(patch.Path), err),
 				Error:     err,
@@ -106,7 +106,7 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 
 	// Update the resource
 	if err := p.client.Update(ctx, unstructuredTarget); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to update resource: %v", err),
 			Error:     err,
@@ -120,7 +120,7 @@ func (p *PatchExecutor) Execute(ctx context.Context, target client.Object, actio
 		"resource", fmt.Sprintf("%s/%s", target.GetNamespace(), target.GetName()),
 		"patches", len(config.Patches))
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success:   true,
 		Message:   fmt.Sprintf("Successfully patched %s/%s with %d patches", target.GetNamespace(), target.GetName(), len(config.Patches)),
 		Changes:   changes,
@@ -173,10 +173,10 @@ func (p *PatchExecutor) Validate(ctx context.Context, target client.Object, acti
 }
 
 // DryRun simulates the patch action
-func (p *PatchExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (p *PatchExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	// Validate the action
 	if err := p.Validate(ctx, target, action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Validation failed: %v", err),
 		}, err
@@ -187,7 +187,7 @@ func (p *PatchExecutor) DryRun(ctx context.Context, target client.Object, action
 	// Create unstructured object for simulation
 	unstructuredTarget, err := p.toUnstructured(target)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Failed to convert to unstructured: %v", err),
 		}, err
@@ -214,7 +214,7 @@ func (p *PatchExecutor) DryRun(ctx context.Context, target client.Object, action
 		})
 	}
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success: true,
 		Message: fmt.Sprintf("Dry-run: Would apply %d patches to %s/%s", len(config.Patches), target.GetNamespace(), target.GetName()),
 		Changes: simulatedChanges,

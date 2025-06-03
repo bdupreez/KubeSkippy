@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -26,7 +26,7 @@ type Controller struct {
 	auditLogger AuditLogger
 
 	// Circuit breakers per policy
-	circuitBreakers sync.Map // map[string]*controller.CircuitBreaker
+	circuitBreakers sync.Map // map[string]*kubetypes.CircuitBreaker
 }
 
 // NewController creates a new safety controller
@@ -49,10 +49,10 @@ func NewController(client client.Client, config config.SafetyConfig, store Actio
 }
 
 // ValidateAction checks if an action is safe to execute
-func (c *Controller) ValidateAction(ctx context.Context, action *v1alpha1.HealingAction) (*controller.ValidationResult, error) {
+func (c *Controller) ValidateAction(ctx context.Context, action *v1alpha1.HealingAction) (*kubetypes.ValidationResult, error) {
 	log := log.FromContext(ctx)
 
-	result := &controller.ValidationResult{
+	result := &kubetypes.ValidationResult{
 		Valid:    true,
 		Warnings: []string{},
 	}
@@ -174,12 +174,12 @@ func (c *Controller) IsProtectedResource(resource runtime.Object) (bool, string)
 
 			// Check protected annotation
 			annotations := gr.GetAnnotations()
-			if annotations[controller.AnnotationProtected] == "true" {
+			if annotations[kubetypes.AnnotationProtected] == "true" {
 				return true, "has protected annotation"
 			}
 
 			// Check if healing is disabled
-			if annotations[controller.AnnotationHealingDisabled] == "true" {
+			if annotations[kubetypes.AnnotationHealingDisabled] == "true" {
 				return true, "healing is disabled via annotation"
 			}
 		}
@@ -203,12 +203,12 @@ func (c *Controller) IsProtectedResource(resource runtime.Object) (bool, string)
 
 	// Check protected annotation
 	annotations := obj.GetAnnotations()
-	if annotations[controller.AnnotationProtected] == "true" {
+	if annotations[kubetypes.AnnotationProtected] == "true" {
 		return true, "has protected annotation"
 	}
 
 	// Check if healing is disabled
-	if annotations[controller.AnnotationHealingDisabled] == "true" {
+	if annotations[kubetypes.AnnotationHealingDisabled] == "true" {
 		return true, "healing is disabled via annotation"
 	}
 
@@ -216,7 +216,7 @@ func (c *Controller) IsProtectedResource(resource runtime.Object) (bool, string)
 }
 
 // RecordAction logs an executed action
-func (c *Controller) RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *controller.ActionResult) {
+func (c *Controller) RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *kubetypes.ActionResult) {
 	policyKey := fmt.Sprintf("%s/%s", action.Spec.PolicyRef.Namespace, action.Spec.PolicyRef.Name)
 	targetKey := fmt.Sprintf("%s/%s/%s",
 		action.Spec.TargetResource.Kind,
@@ -308,14 +308,14 @@ func (c *Controller) validateActionType(action *v1alpha1.HealingAction, target r
 }
 
 // getOrCreateCircuitBreaker gets or creates a circuit breaker for a policy
-func (c *Controller) getOrCreateCircuitBreaker(policyName string) *controller.CircuitBreaker {
+func (c *Controller) getOrCreateCircuitBreaker(policyName string) *kubetypes.CircuitBreaker {
 	// Try to load existing circuit breaker
 	if value, exists := c.circuitBreakers.Load(policyName); exists {
-		return value.(*controller.CircuitBreaker)
+		return value.(*kubetypes.CircuitBreaker)
 	}
 
 	// Create new circuit breaker
-	cb := controller.NewCircuitBreaker(
+	cb := kubetypes.NewCircuitBreaker(
 		c.config.CircuitBreaker.FailureThreshold,
 		c.config.CircuitBreaker.SuccessThreshold,
 		c.config.CircuitBreaker.Timeout,
@@ -325,7 +325,7 @@ func (c *Controller) getOrCreateCircuitBreaker(policyName string) *controller.Ci
 	actual, _ := c.circuitBreakers.LoadOrStore(policyName, cb)
 
 	// Return the actual value (either the new one we stored, or an existing one)
-	return actual.(*controller.CircuitBreaker)
+	return actual.(*kubetypes.CircuitBreaker)
 }
 
 // getPolicyKey generates a unique key for a policy

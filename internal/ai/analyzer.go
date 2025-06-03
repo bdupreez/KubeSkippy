@@ -9,7 +9,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/internal/metrics"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
@@ -95,7 +95,7 @@ func NewAnalyzer(config config.AIConfig) (*Analyzer, error) {
 }
 
 // AnalyzeClusterState analyzes the cluster state and provides recommendations
-func (a *Analyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.ClusterMetrics, issues []controller.Issue) (*controller.AIAnalysis, error) {
+func (a *Analyzer) AnalyzeClusterState(ctx context.Context, metrics *types.ClusterMetrics, issues []types.Issue) (*types.AIAnalysis, error) {
 	log := log.FromContext(ctx)
 	log.Info("Analyzing cluster state with AI", "provider", a.config.Provider, "model", a.client.GetModel())
 
@@ -145,7 +145,7 @@ func (a *Analyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.
 }
 
 // ValidateRecommendation validates an AI recommendation for safety
-func (a *Analyzer) ValidateRecommendation(ctx context.Context, recommendation *controller.AIRecommendation) error {
+func (a *Analyzer) ValidateRecommendation(ctx context.Context, recommendation *types.AIRecommendation) error {
 	log := log.FromContext(ctx)
 
 	// Basic validation
@@ -194,7 +194,7 @@ func (a *Analyzer) GetModel() string {
 }
 
 // buildClusterAnalysisPrompt creates the prompt for cluster analysis
-func (a *Analyzer) buildClusterAnalysisPrompt(metrics *controller.ClusterMetrics, issues []controller.Issue) (string, error) {
+func (a *Analyzer) buildClusterAnalysisPrompt(metrics *types.ClusterMetrics, issues []types.Issue) (string, error) {
 	// Convert metrics to JSON for structured input
 	metricsJSON, err := json.MarshalIndent(metrics, "", "  ")
 	if err != nil {
@@ -215,9 +215,9 @@ func (a *Analyzer) buildClusterAnalysisPrompt(metrics *controller.ClusterMetrics
 }
 
 // parseAnalysisResponse parses the AI response into structured analysis
-func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysis, error) {
+func (a *Analyzer) parseAnalysisResponse(response string) (*types.AIAnalysis, error) {
 	// First, try to parse as JSON (if AI returns structured response)
-	var analysis controller.AIAnalysis
+	var analysis types.AIAnalysis
 	if err := json.Unmarshal([]byte(response), &analysis); err == nil {
 		return &analysis, nil
 	}
@@ -233,7 +233,7 @@ func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysi
 		summaryEndMarker = "ISSUES"
 	}
 
-	analysis = controller.AIAnalysis{
+	analysis = types.AIAnalysis{
 		Summary:    extractSection(response, "SUMMARY", summaryEndMarker),
 		Confidence: extractConfidence(response),
 	}
@@ -243,7 +243,7 @@ func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysi
 		reasoningText := extractSection(response, "REASONING_STEPS", "ISSUES")
 		analysis.ReasoningSteps = parseReasoningSteps(reasoningText)
 	} else {
-		analysis.ReasoningSteps = []controller.ReasoningStep{}
+		analysis.ReasoningSteps = []types.ReasoningStep{}
 	}
 
 	// Extract issues
@@ -263,11 +263,11 @@ func (a *Analyzer) parseAnalysisResponse(response string) (*controller.AIAnalysi
 }
 
 // validateAnalysis validates and filters AI analysis results
-func (a *Analyzer) validateAnalysis(ctx context.Context, analysis *controller.AIAnalysis, metrics *controller.ClusterMetrics) *controller.AIAnalysis {
+func (a *Analyzer) validateAnalysis(ctx context.Context, analysis *types.AIAnalysis, metrics *types.ClusterMetrics) *types.AIAnalysis {
 	log := log.FromContext(ctx)
 
 	// Filter recommendations below confidence threshold
-	validRecs := []controller.AIRecommendation{}
+	validRecs := []types.AIRecommendation{}
 	for _, rec := range analysis.Recommendations {
 		if rec.Confidence >= float64(a.config.MinConfidence) {
 			// Additional safety checks
@@ -289,7 +289,7 @@ func (a *Analyzer) validateAnalysis(ctx context.Context, analysis *controller.AI
 }
 
 // buildValidationPrompt creates a prompt to validate a recommendation
-func (a *Analyzer) buildValidationPrompt(recommendation *controller.AIRecommendation) string {
+func (a *Analyzer) buildValidationPrompt(recommendation *types.AIRecommendation) string {
 	return fmt.Sprintf(a.prompts.ActionValidation,
 		recommendation.Action,
 		recommendation.Target,
@@ -350,11 +350,11 @@ func extractConfidence(text string) float64 {
 	return 0.0
 }
 
-func parseIssues(text string) []controller.AIIssue {
-	issues := []controller.AIIssue{}
+func parseIssues(text string) []types.AIIssue {
+	issues := []types.AIIssue{}
 	lines := strings.Split(text, "\n")
 
-	var currentIssue *controller.AIIssue
+	var currentIssue *types.AIIssue
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -366,7 +366,7 @@ func parseIssues(text string) []controller.AIIssue {
 			if currentIssue != nil {
 				issues = append(issues, *currentIssue)
 			}
-			currentIssue = &controller.AIIssue{
+			currentIssue = &types.AIIssue{
 				ID:          fmt.Sprintf("ai-issue-%d", len(issues)+1),
 				Description: strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(line, "- "), "* "), "• "),
 			}
@@ -389,16 +389,16 @@ func parseIssues(text string) []controller.AIIssue {
 	return issues
 }
 
-func parseRecommendations(text string) []controller.AIRecommendation {
+func parseRecommendations(text string) []types.AIRecommendation {
 	// Keep the old function for backwards compatibility
 	return parseRecommendationsWithReasoning(text)
 }
 
-func parseRecommendationsWithReasoning(text string) []controller.AIRecommendation {
-	recommendations := []controller.AIRecommendation{}
+func parseRecommendationsWithReasoning(text string) []types.AIRecommendation {
+	recommendations := []types.AIRecommendation{}
 	lines := strings.Split(text, "\n")
 
-	var currentRec *controller.AIRecommendation
+	var currentRec *types.AIRecommendation
 	var inReasoning bool
 	var reasoningSection string
 
@@ -430,7 +430,7 @@ func parseRecommendationsWithReasoning(text string) []controller.AIRecommendatio
 				action = strings.TrimPrefix(action, prefix)
 			}
 
-			currentRec = &controller.AIRecommendation{
+			currentRec = &types.AIRecommendation{
 				ID:         fmt.Sprintf("ai-rec-%d", len(recommendations)+1),
 				Priority:   len(recommendations) + 1,
 				Action:     strings.TrimSpace(action),
@@ -580,18 +580,18 @@ Identify:
 4. Remediation steps`
 
 // NoOpAnalyzer implementations
-func (n *NoOpAnalyzer) AnalyzeClusterState(ctx context.Context, metrics *controller.ClusterMetrics, issues []controller.Issue) (*controller.AIAnalysis, error) {
-	return &controller.AIAnalysis{
+func (n *NoOpAnalyzer) AnalyzeClusterState(ctx context.Context, metrics *types.ClusterMetrics, issues []types.Issue) (*types.AIAnalysis, error) {
+	return &types.AIAnalysis{
 		Timestamp:       time.Now(),
 		Summary:         "AI analysis disabled",
-		Issues:          []controller.AIIssue{},
-		Recommendations: []controller.AIRecommendation{},
+		Issues:          []types.AIIssue{},
+		Recommendations: []types.AIRecommendation{},
 		Confidence:      0.0,
 		ModelVersion:    "no-op",
 	}, nil
 }
 
-func (n *NoOpAnalyzer) ValidateRecommendation(ctx context.Context, recommendation *controller.AIRecommendation) error {
+func (n *NoOpAnalyzer) ValidateRecommendation(ctx context.Context, recommendation *types.AIRecommendation) error {
 	// No-op analyzer always approves recommendations as it provides none
 	return nil
 }
@@ -601,11 +601,11 @@ func (n *NoOpAnalyzer) GetModel() string {
 }
 
 // parseReasoningSteps parses the reasoning steps from AI response
-func parseReasoningSteps(text string) []controller.ReasoningStep {
-	steps := []controller.ReasoningStep{}
+func parseReasoningSteps(text string) []types.ReasoningStep {
+	steps := []types.ReasoningStep{}
 	lines := strings.Split(text, "\n")
 
-	var currentStep *controller.ReasoningStep
+	var currentStep *types.ReasoningStep
 	stepCount := 0
 
 	for _, line := range lines {
@@ -624,7 +624,7 @@ func parseReasoningSteps(text string) []controller.ReasoningStep {
 			stepCount++
 			description := strings.TrimSpace(strings.Split(trimmedLine, ":")[1])
 
-			currentStep = &controller.ReasoningStep{
+			currentStep = &types.ReasoningStep{
 				Step:        stepCount,
 				Description: description,
 				Evidence:    []string{},
@@ -657,12 +657,12 @@ func parseReasoningSteps(text string) []controller.ReasoningStep {
 }
 
 // parseDecisionReasoning parses detailed reasoning for a recommendation
-func parseDecisionReasoning(text string) controller.DecisionReasoning {
-	reasoning := controller.DecisionReasoning{
+func parseDecisionReasoning(text string) types.DecisionReasoning {
+	reasoning := types.DecisionReasoning{
 		Observations:      []string{},
 		Analysis:          []string{},
-		Alternatives:      []controller.Alternative{},
-		ConfidenceFactors: []controller.ConfidenceFactor{},
+		Alternatives:      []types.Alternative{},
+		ConfidenceFactors: []types.ConfidenceFactor{},
 	}
 
 	lines := strings.Split(text, "\n")
@@ -722,11 +722,11 @@ func parseDecisionReasoning(text string) controller.DecisionReasoning {
 }
 
 // parseAlternative parses an alternative action from the text
-func parseAlternative(text string) controller.Alternative {
+func parseAlternative(text string) types.Alternative {
 	// Expected format: - [Action]: Pros: [pros] | Cons: [cons] | Risk: [level] | Rejected: [reason]
 	text = strings.TrimPrefix(strings.TrimPrefix(text, "- "), "• ")
 
-	alt := controller.Alternative{
+	alt := types.Alternative{
 		Pros:       []string{},
 		Cons:       []string{},
 		RiskLevel:  "Medium",
@@ -767,11 +767,11 @@ func parseAlternative(text string) controller.Alternative {
 }
 
 // parseConfidenceFactor parses a confidence factor from the text
-func parseConfidenceFactor(text string) controller.ConfidenceFactor {
+func parseConfidenceFactor(text string) types.ConfidenceFactor {
 	// Expected format: - [Factor]: [Impact] impact, Weight: [0.0-1.0], Evidence: [evidence]
 	text = strings.TrimPrefix(strings.TrimPrefix(text, "- "), "• ")
 
-	factor := controller.ConfidenceFactor{
+	factor := types.ConfidenceFactor{
 		Impact: "neutral",
 		Weight: 0.5,
 	}

@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // RestartExecutor handles restart actions
@@ -31,7 +31,7 @@ func NewRestartExecutor(client client.Client) *RestartExecutor {
 }
 
 // Execute performs the restart action
-func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	startTime := time.Now()
 
@@ -60,7 +60,7 @@ func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, act
 	case "DaemonSet":
 		changes, err = r.restartWorkloadGeneric(ctx, target, config, "DaemonSet")
 	default:
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Restart not supported for resource kind %s", gvk.Kind),
 			StartTime: startTime,
@@ -69,7 +69,7 @@ func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, act
 	}
 
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to restart resource: %v", err),
 			Error:     err,
@@ -84,7 +84,7 @@ func (r *RestartExecutor) Execute(ctx context.Context, target client.Object, act
 		"strategy", config.Strategy,
 		"changes", len(changes))
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success:   true,
 		Message:   fmt.Sprintf("Successfully restarted %s/%s using %s strategy", target.GetNamespace(), target.GetName(), config.Strategy),
 		Changes:   changes,
@@ -124,10 +124,10 @@ func (r *RestartExecutor) Validate(ctx context.Context, target client.Object, ac
 }
 
 // DryRun simulates the restart action
-func (r *RestartExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (r *RestartExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	// Validate the action
 	if err := r.Validate(ctx, target, action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success: false,
 			Message: fmt.Sprintf("Validation failed: %v", err),
 		}, err
@@ -186,7 +186,7 @@ func (r *RestartExecutor) DryRun(ctx context.Context, target client.Object, acti
 		}
 	}
 
-	return &controller.ActionResult{
+	return &kubetypes.ActionResult{
 		Success: true,
 		Message: fmt.Sprintf("Dry-run: Would restart %s/%s using %s strategy", target.GetNamespace(), target.GetName(), config.Strategy),
 		Changes: simulatedChanges,

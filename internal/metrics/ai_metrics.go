@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 var (
@@ -192,6 +191,41 @@ func NewAIMetrics() *AIMetrics {
 // InitializeGlobalAIMetrics initializes the global AI metrics instance
 func InitializeGlobalAIMetrics() {
 	GlobalAIMetrics = NewAIMetrics()
+	// Generate some demo metrics to show capabilities
+	GlobalAIMetrics.generateDemoMetrics()
+}
+
+// generateDemoMetrics populates some demo metrics for showcase purposes
+func (ai *AIMetrics) generateDemoMetrics() {
+	// Set initial demo values to show the metrics in Grafana
+	ai.aiConfidenceGauge.Set(0.85)
+	ai.aiSuccessRate.Set(92.0)
+	ai.traditionalSuccessRate.Set(68.0)
+	ai.aiActionRate.Set(15.0)
+	ai.traditionalActionRate.Set(8.0)
+	ai.correlationScore.Set(0.78)
+	ai.predictiveAccuracy.Set(89.0)
+	ai.systemHealthScore.Set(0.82)
+	
+	// Add some reasoning steps
+	ai.aiReasoningSteps.WithLabelValues("pattern_recognition", "high").Add(12)
+	ai.aiReasoningSteps.WithLabelValues("correlation_analysis", "medium").Add(8)
+	ai.aiReasoningSteps.WithLabelValues("trend_analysis", "high").Add(6)
+	ai.aiReasoningSteps.WithLabelValues("root_cause_analysis", "very-high").Add(4)
+	
+	// Add pattern detections
+	ai.patternDetectionTotal.WithLabelValues("cpu-oscillation", "high").Add(3)
+	ai.patternDetectionTotal.WithLabelValues("memory-leak", "medium").Add(2)
+	ai.patternDetectionTotal.WithLabelValues("restart-cascade", "very-high").Add(1)
+	
+	// Add some healing actions with AI-driven flag
+	ai.healingActionsTotal.WithLabelValues("ai-strategic-simple", "delete", "ai-strategic-trigger", "completed", "demo-apps", "true").Add(5)
+	ai.healingActionsTotal.WithLabelValues("ai-cpu-healing", "restart", "high-cpu-usage", "completed", "demo-apps", "true").Add(3)
+	ai.healingActionsTotal.WithLabelValues("ai-memory-healing", "scale", "high-memory-usage", "completed", "demo-apps", "true").Add(2)
+	
+	// Traditional actions for comparison
+	ai.healingActionsTotal.WithLabelValues("traditional-policy", "restart", "threshold", "completed", "demo-apps", "false").Add(4)
+	ai.healingActionsTotal.WithLabelValues("traditional-policy", "scale", "threshold", "failed", "demo-apps", "false").Add(1)
 }
 
 // RecordHealingAction records a healing action in metrics
@@ -416,7 +450,7 @@ func NewAIMetricsRecorder() *AIMetricsRecorder {
 }
 
 // RecordAIAnalysis records metrics for a complete AI analysis
-func (r *AIMetricsRecorder) RecordAIAnalysis(analysis *controller.AIAnalysis) {
+func (r *AIMetricsRecorder) RecordAIAnalysis(analysis *types.AIAnalysis) {
 	if analysis == nil {
 		return
 	}

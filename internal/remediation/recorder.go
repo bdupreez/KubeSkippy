@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // InMemoryActionRecorder implements ActionRecorder using in-memory storage
@@ -29,7 +29,7 @@ func NewInMemoryActionRecorder(maxAge time.Duration) *InMemoryActionRecorder {
 }
 
 // RecordAction records an action execution for audit and rollback
-func (r *InMemoryActionRecorder) RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *controller.ActionResult, originalState runtime.Object) error {
+func (r *InMemoryActionRecorder) RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *kubetypes.ActionResult, originalState runtime.Object) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

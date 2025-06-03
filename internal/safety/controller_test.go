@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -404,7 +404,7 @@ func TestController_IsProtectedResource(t *testing.T) {
 				namespace: "default",
 				name:      "test-pod",
 				annotations: map[string]string{
-					controller.AnnotationProtected: "true",
+					kubetypes.AnnotationProtected: "true",
 				},
 			},
 			expectedProtected: true,
@@ -417,7 +417,7 @@ func TestController_IsProtectedResource(t *testing.T) {
 				namespace: "default",
 				name:      "test-pod",
 				annotations: map[string]string{
-					controller.AnnotationHealingDisabled: "true",
+					kubetypes.AnnotationHealingDisabled: "true",
 				},
 			},
 			expectedProtected: true,
@@ -486,7 +486,7 @@ func TestController_RecordAction(t *testing.T) {
 		},
 	}
 
-	result := &controller.ActionResult{
+	result := &types.ActionResult{
 		Success:   true,
 		Message:   "Action completed",
 		StartTime: time.Now().Add(-1 * time.Minute),
@@ -625,7 +625,7 @@ func TestCircuitBreakerIntegration(t *testing.T) {
 
 	// Record failures to trip circuit breaker
 	for i := 0; i < 2; i++ {
-		safetyCtrl.RecordAction(context.Background(), action, &controller.ActionResult{
+		safetyCtrl.RecordAction(context.Background(), action, &types.ActionResult{
 			Success:   false,
 			Error:     fmt.Errorf("test error"),
 			StartTime: time.Now(),

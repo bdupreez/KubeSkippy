@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -91,16 +91,16 @@ func TestAnalyzer_AnalyzeClusterState(t *testing.T) {
 	}
 
 	// Test data
-	metrics := &controller.ClusterMetrics{
+	metrics := &types.ClusterMetrics{
 		Timestamp: time.Now(),
-		Nodes: []controller.NodeMetrics{
+		Nodes: []types.NodeMetrics{
 			{
 				Name:        "node1",
 				CPUUsage:    85.5,
 				MemoryUsage: 70.2,
 			},
 		},
-		Pods: []controller.PodMetrics{
+		Pods: []types.PodMetrics{
 			{
 				Name:         "pod1",
 				Namespace:    "default",
@@ -109,7 +109,7 @@ func TestAnalyzer_AnalyzeClusterState(t *testing.T) {
 		},
 	}
 
-	issues := []controller.Issue{
+	issues := []types.Issue{
 		{
 			ID:          "issue-1",
 			Severity:    "High",
@@ -179,13 +179,13 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		recommendation *controller.AIRecommendation
+		recommendation *types.AIRecommendation
 		expectError    bool
 		errorContains  string
 	}{
 		{
 			name: "valid recommendation",
-			recommendation: &controller.AIRecommendation{
+			recommendation: &types.AIRecommendation{
 				Action:     "scale deployment",
 				Target:     "deployment/api-server",
 				Confidence: 0.8,
@@ -194,7 +194,7 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 		},
 		{
 			name: "missing action",
-			recommendation: &controller.AIRecommendation{
+			recommendation: &types.AIRecommendation{
 				Target:     "deployment/api-server",
 				Confidence: 0.8,
 			},
@@ -203,7 +203,7 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 		},
 		{
 			name: "missing target",
-			recommendation: &controller.AIRecommendation{
+			recommendation: &types.AIRecommendation{
 				Action:     "scale deployment",
 				Confidence: 0.8,
 			},
@@ -212,7 +212,7 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 		},
 		{
 			name: "unsafe action",
-			recommendation: &controller.AIRecommendation{
+			recommendation: &types.AIRecommendation{
 				Action:     "delete-namespace kube-system",
 				Target:     "namespace/kube-system",
 				Confidence: 0.9,
@@ -222,7 +222,7 @@ func TestAnalyzer_ValidateRecommendation(t *testing.T) {
 		},
 		{
 			name: "low confidence",
-			recommendation: &controller.AIRecommendation{
+			recommendation: &types.AIRecommendation{
 				Action:     "scale deployment",
 				Target:     "deployment/api-server",
 				Confidence: 0.5,
@@ -253,7 +253,7 @@ func TestParseAnalysisResponse(t *testing.T) {
 	tests := []struct {
 		name     string
 		response string
-		validate func(t *testing.T, analysis *controller.AIAnalysis)
+		validate func(t *testing.T, analysis *types.AIAnalysis)
 	}{
 		{
 			name: "structured text response",
@@ -282,7 +282,7 @@ RECOMMENDATIONS:
    Confidence: 0.7
 
 END`,
-			validate: func(t *testing.T, analysis *controller.AIAnalysis) {
+			validate: func(t *testing.T, analysis *types.AIAnalysis) {
 				assert.Equal(t, "Test cluster analysis summary", analysis.Summary)
 				assert.Len(t, analysis.Issues, 2)
 				assert.Equal(t, "Critical", analysis.Issues[0].Severity)
@@ -311,7 +311,7 @@ END`,
 					}
 				]
 			}`,
-			validate: func(t *testing.T, analysis *controller.AIAnalysis) {
+			validate: func(t *testing.T, analysis *types.AIAnalysis) {
 				assert.Equal(t, "JSON test summary", analysis.Summary)
 				assert.Equal(t, 0.9, analysis.Confidence)
 				assert.Len(t, analysis.Issues, 1)
@@ -356,13 +356,13 @@ func TestBuildClusterAnalysisPrompt(t *testing.T) {
 		},
 	}
 
-	metrics := &controller.ClusterMetrics{
-		Nodes: []controller.NodeMetrics{
+	metrics := &types.ClusterMetrics{
+		Nodes: []types.NodeMetrics{
 			{Name: "node1", CPUUsage: 50},
 		},
 	}
 
-	issues := []controller.Issue{
+	issues := []types.Issue{
 		{ID: "1", Description: "Test issue"},
 	}
 

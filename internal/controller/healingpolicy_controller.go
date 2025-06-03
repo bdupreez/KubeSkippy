@@ -20,6 +20,7 @@ import (
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
 	"github.com/kubeskippy/kubeskippy/internal/metrics"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 	"github.com/kubeskippy/kubeskippy/pkg/config"
 )
 
@@ -124,7 +125,7 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 	}
 
 	// Collect metrics
-	metrics, err := r.MetricsCollector.CollectMetrics(ctx, policy)
+	clusterMetrics, err := r.MetricsCollector.CollectMetrics(ctx, policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect metrics: %w", err)
 	}
@@ -169,13 +170,13 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 				if advMetrics, ok := advancedMetrics.(*metrics.AdvancedMetrics); ok {
 					triggered, reason, err = advancedCollector.EvaluateAdvancedTrigger(ctx, &trigger, advMetrics)
 				} else {
-					triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+					triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, clusterMetrics)
 				}
 			} else {
-				triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+				triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, clusterMetrics)
 			}
 		} else {
-			triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, metrics)
+			triggered, reason, err = r.MetricsCollector.EvaluateTrigger(ctx, &trigger, clusterMetrics)
 		}
 		
 		if err != nil {
@@ -217,7 +218,7 @@ func (r *HealingPolicyReconciler) evaluatePolicy(ctx context.Context, log logr.L
 	if len(triggeredActions) > 0 {
 		// Get AI recommendations if configured
 		if r.AIAnalyzer != nil && r.Config.AI.Provider != "" {
-			aiResult, err := r.getAIRecommendations(ctx, metrics, triggeredActions)
+			aiResult, err := r.getAIRecommendations(ctx, clusterMetrics, triggeredActions)
 			if err != nil {
 				log.Error(err, "Failed to get AI recommendations")
 			} else {
@@ -392,11 +393,11 @@ func (r *HealingPolicyReconciler) checkCooldown(policy *v1alpha1.HealingPolicy, 
 }
 
 // getAIRecommendations gets AI recommendations for triggered actions
-func (r *HealingPolicyReconciler) getAIRecommendations(ctx context.Context, metrics *ClusterMetrics, actions []TriggeredAction) (*AIAnalysis, error) {
+func (r *HealingPolicyReconciler) getAIRecommendations(ctx context.Context, clusterMetrics *types.ClusterMetrics, actions []TriggeredAction) (*types.AIAnalysis, error) {
 	// Convert triggered actions to issues
-	issues := make([]Issue, len(actions))
+	issues := make([]types.Issue, len(actions))
 	for i, action := range actions {
-		issues[i] = Issue{
+		issues[i] = types.Issue{
 			ID:          fmt.Sprintf("%s-%s", action.Trigger, action.Resource.GetName()),
 			Severity:    "medium",
 			Type:        action.Trigger,
@@ -407,11 +408,11 @@ func (r *HealingPolicyReconciler) getAIRecommendations(ctx context.Context, metr
 	}
 
 	// Get AI analysis
-	return r.AIAnalyzer.AnalyzeClusterState(ctx, metrics, issues)
+	return r.AIAnalyzer.AnalyzeClusterState(ctx, clusterMetrics, issues)
 }
 
 // filterActionsWithAI filters actions based on AI recommendations
-func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction, aiResult *AIAnalysis) []TriggeredAction {
+func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction, aiResult *types.AIAnalysis) []TriggeredAction {
 	if aiResult == nil || len(aiResult.Recommendations) == 0 {
 		log.Log.Info("No AI recommendations available, using all triggered actions")
 		return actions
@@ -445,7 +446,7 @@ func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction,
 				Confidence:     recommendation.Confidence,
 				ReasoningSteps: extractReasoningSteps(recommendation),
 				Alternatives:   extractAlternatives(recommendation),
-				RiskAssessment: recommendation.Reasoning.Summary,
+				RiskAssessment: recommendation.Reasoning.DecisionLogic,
 				ExpectedOutcome: fmt.Sprintf("AI-driven %s with %.1f%% confidence", 
 					recommendation.Action, recommendation.Confidence*100),
 			}
@@ -466,7 +467,7 @@ func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction,
 					"action", action.Action.Type,
 					"resource", action.Resource.GetName(),
 					"confidence", recommendation.Confidence,
-					"ai_reasoning", recommendation.Reasoning.Summary)
+					"ai_reasoning", recommendation.Reasoning.DecisionLogic)
 			}
 		}
 	}
@@ -501,11 +502,11 @@ func (r *HealingPolicyReconciler) filterActionsWithAI(actions []TriggeredAction,
 
 // Helper functions for AI decision processing
 
-func extractReasoningSteps(recommendation Recommendation) []string {
+func extractReasoningSteps(recommendation types.AIRecommendation) []string {
 	steps := []string{}
 	
-	if recommendation.Reasoning.Summary != "" {
-		steps = append(steps, "analysis-"+recommendation.Reasoning.Summary[:min(50, len(recommendation.Reasoning.Summary))])
+	if recommendation.Reasoning.DecisionLogic != "" {
+		steps = append(steps, "analysis-"+recommendation.Reasoning.DecisionLogic[:min(50, len(recommendation.Reasoning.DecisionLogic))])
 	}
 	
 	for _, factor := range recommendation.Reasoning.ConfidenceFactors {
@@ -525,7 +526,7 @@ func extractReasoningSteps(recommendation Recommendation) []string {
 	return steps
 }
 
-func extractAlternatives(recommendation Recommendation) []string {
+func extractAlternatives(recommendation types.AIRecommendation) []string {
 	alternatives := []string{}
 	
 	for _, alt := range recommendation.Reasoning.Alternatives {
@@ -535,7 +536,7 @@ func extractAlternatives(recommendation Recommendation) []string {
 	return alternatives
 }
 
-func (r *HealingPolicyReconciler) matchesAIRecommendation(action TriggeredAction, recommendation Recommendation) bool {
+func (r *HealingPolicyReconciler) matchesAIRecommendation(action TriggeredAction, recommendation types.AIRecommendation) bool {
 	// Simple matching based on action type
 	// In a more sophisticated implementation, this would consider resource type,
 	// namespace, labels, and other contextual factors
@@ -645,5 +646,5 @@ type TriggeredAction struct {
 	Action           v1alpha1.HealingActionTemplate
 	Reason           string
 	IsAIBased        bool
-	AIRecommendation *Recommendation
+	AIRecommendation *types.AIRecommendation
 }

@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // Collector implements the MetricsCollector interface
@@ -63,11 +63,11 @@ func (c *Collector) WithPrometheus(prometheusAddr string) error {
 }
 
 // CollectMetrics gathers metrics for the given policy
-func (c *Collector) CollectMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) (*controller.ClusterMetrics, error) {
+func (c *Collector) CollectMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) (*types.ClusterMetrics, error) {
 	log := log.FromContext(ctx)
 	log.Info("Collecting metrics for policy", "policy", policy.Name)
 
-	metrics := &controller.ClusterMetrics{
+	metrics := &types.ClusterMetrics{
 		Timestamp: time.Now(),
 		Resources: make(map[string]interface{}),
 		Custom:    make(map[string]float64),
@@ -106,7 +106,7 @@ func (c *Collector) CollectMetrics(ctx context.Context, policy *v1alpha1.Healing
 }
 
 // EvaluateTrigger checks if a trigger condition is met
-func (c *Collector) EvaluateTrigger(ctx context.Context, trigger *v1alpha1.HealingTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
+func (c *Collector) EvaluateTrigger(ctx context.Context, trigger *v1alpha1.HealingTrigger, metrics *types.ClusterMetrics) (bool, string, error) {
 	switch trigger.Type {
 	case "metric":
 		if trigger.MetricTrigger == nil {
@@ -132,8 +132,8 @@ func (c *Collector) EvaluateTrigger(ctx context.Context, trigger *v1alpha1.Heali
 }
 
 // GetResourceMetrics gets metrics for a specific resource
-func (c *Collector) GetResourceMetrics(ctx context.Context, resource *v1alpha1.TargetResource) (*controller.ResourceMetrics, error) {
-	metrics := &controller.ResourceMetrics{
+func (c *Collector) GetResourceMetrics(ctx context.Context, resource *v1alpha1.TargetResource) (*types.ResourceMetrics, error) {
+	metrics := &types.ResourceMetrics{
 		APIVersion: resource.APIVersion,
 		Kind:       resource.Kind,
 		Name:       resource.Name,
@@ -184,8 +184,8 @@ func (c *Collector) GetResourceMetrics(ctx context.Context, resource *v1alpha1.T
 }
 
 // collectNodeMetrics collects metrics for all nodes matching the policy selector
-func (c *Collector) collectNodeMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]controller.NodeMetrics, error) {
-	var nodeMetrics []controller.NodeMetrics
+func (c *Collector) collectNodeMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]types.NodeMetrics, error) {
+	var nodeMetrics []types.NodeMetrics
 
 	// Get all nodes
 	nodeList := &corev1.NodeList{}
@@ -218,7 +218,7 @@ func (c *Collector) collectNodeMetrics(ctx context.Context, policy *v1alpha1.Hea
 			}
 		}
 
-		nm := controller.NodeMetrics{
+		nm := types.NodeMetrics{
 			Name:           node.Name,
 			Labels:         node.Labels,
 			LastUpdateTime: time.Now(),
@@ -250,8 +250,8 @@ func (c *Collector) collectNodeMetrics(ctx context.Context, policy *v1alpha1.Hea
 }
 
 // collectPodMetrics collects metrics for pods matching the policy selector
-func (c *Collector) collectPodMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]controller.PodMetrics, error) {
-	var podMetrics []controller.PodMetrics
+func (c *Collector) collectPodMetrics(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]types.PodMetrics, error) {
+	var podMetrics []types.PodMetrics
 
 	// Build list options from policy selector
 	opts := []client.ListOption{}
@@ -279,7 +279,7 @@ func (c *Collector) collectPodMetrics(ctx context.Context, policy *v1alpha1.Heal
 
 	// Get pod metrics from metrics server
 	for _, pod := range podList.Items {
-		pm := controller.PodMetrics{
+		pm := types.PodMetrics{
 			Name:           pod.Name,
 			Namespace:      pod.Namespace,
 			Status:         string(pod.Status.Phase),
@@ -322,8 +322,8 @@ func (c *Collector) collectPodMetrics(ctx context.Context, policy *v1alpha1.Heal
 }
 
 // collectEvents collects recent events
-func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]controller.EventMetrics, error) {
-	var eventMetrics []controller.EventMetrics
+func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingPolicy) ([]types.EventMetrics, error) {
+	var eventMetrics []types.EventMetrics
 
 	// List events from all namespaces or specific namespaces based on policy
 	namespace := ""
@@ -340,7 +340,7 @@ func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingP
 
 	// Convert to event metrics
 	for _, event := range eventList.Items {
-		em := controller.EventMetrics{
+		em := types.EventMetrics{
 			Type:      event.Type,
 			Reason:    event.Reason,
 			Message:   event.Message,
@@ -356,7 +356,7 @@ func (c *Collector) collectEvents(ctx context.Context, policy *v1alpha1.HealingP
 }
 
 // evaluateMetricTrigger evaluates a metric-based trigger
-func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1.MetricTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
+func (c *Collector) evaluateMetricTrigger(ctx context.Context, trigger *v1alpha1.MetricTrigger, metrics *types.ClusterMetrics) (bool, string, error) {
 	var actualValue float64
 	var err error
 
@@ -541,7 +541,7 @@ func (c *Collector) evaluateThreshold(value, threshold float64, operator string)
 }
 
 // evaluateEventTrigger evaluates an event-based trigger
-func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.EventTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
+func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.EventTrigger, metrics *types.ClusterMetrics) (bool, string, error) {
 	matchCount := 0
 	window := time.Duration(5 * time.Minute) // Default window
 	if trigger.Window.Duration > 0 {
@@ -571,7 +571,7 @@ func (c *Collector) evaluateEventTrigger(ctx context.Context, trigger *v1alpha1.
 }
 
 // evaluateConditionTrigger evaluates a condition-based trigger
-func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alpha1.ConditionTrigger, metrics *controller.ClusterMetrics) (bool, string, error) {
+func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alpha1.ConditionTrigger, metrics *types.ClusterMetrics) (bool, string, error) {
 	matchCount := 0
 
 	// Check node conditions
@@ -611,7 +611,7 @@ func (c *Collector) evaluateConditionTrigger(ctx context.Context, trigger *v1alp
 
 // Helper methods for getting metric values
 
-func (c *Collector) getNodeMetricValue(metricName, target string, nodes []controller.NodeMetrics) (float64, bool) {
+func (c *Collector) getNodeMetricValue(metricName, target string, nodes []types.NodeMetrics) (float64, bool) {
 	var values []float64
 
 	for _, node := range nodes {
@@ -670,7 +670,7 @@ func (c *Collector) getNodeMetricValue(metricName, target string, nodes []contro
 	}
 }
 
-func (c *Collector) getPodMetricValue(metricName, target string, pods []controller.PodMetrics) (float64, bool) {
+func (c *Collector) getPodMetricValue(metricName, target string, pods []types.PodMetrics) (float64, bool) {
 	var values []float64
 
 	for _, pod := range pods {
@@ -833,7 +833,7 @@ func (c *Collector) getGenericResourceMetrics(ctx context.Context, resource *v1a
 	}, nil
 }
 
-func (c *Collector) getResourceEvents(ctx context.Context, resource *v1alpha1.TargetResource) ([]controller.EventMetrics, error) {
+func (c *Collector) getResourceEvents(ctx context.Context, resource *v1alpha1.TargetResource) ([]types.EventMetrics, error) {
 	fieldSelector := fields.OneTermEqualSelector("involvedObject.name", resource.Name)
 	if resource.Namespace != "" {
 		fieldSelector = fields.AndSelectors(
@@ -850,9 +850,9 @@ func (c *Collector) getResourceEvents(ctx context.Context, resource *v1alpha1.Ta
 		return nil, err
 	}
 
-	var events []controller.EventMetrics
+	var events []types.EventMetrics
 	for _, event := range eventList.Items {
-		em := controller.EventMetrics{
+		em := types.EventMetrics{
 			Type:      event.Type,
 			Reason:    event.Reason,
 			Message:   event.Message,

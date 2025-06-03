@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	"github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // AdvancedMetrics represents sophisticated metrics for AI analysis
@@ -212,7 +212,7 @@ func (ac *AdvancedCollector) EvaluateAdvancedTrigger(ctx context.Context, trigge
 		found = true
 	default:
 		// Fall back to basic metrics evaluation
-		return ac.Collector.EvaluateTrigger(ctx, trigger, &controller.ClusterMetrics{})
+		return ac.Collector.EvaluateTrigger(ctx, trigger, &types.ClusterMetrics{})
 	}
 
 	if !found {
@@ -234,7 +234,7 @@ func (ac *AdvancedCollector) EvaluateAdvancedTrigger(ctx context.Context, trigge
 }
 
 // updateHistoricalData stores current metrics for trend analysis
-func (ac *AdvancedCollector) updateHistoricalData(metrics *controller.ClusterMetrics) {
+func (ac *AdvancedCollector) updateHistoricalData(metrics *types.ClusterMetrics) {
 	timestamp := time.Now()
 	
 	// Store pod metrics
@@ -429,7 +429,7 @@ func (ac *AdvancedCollector) calculateNetworkLatencyTrend() float64 {
 }
 
 // calculateSystemHealthScore computes overall system health
-func (ac *AdvancedCollector) calculateSystemHealthScore(metrics *controller.ClusterMetrics) float64 {
+func (ac *AdvancedCollector) calculateSystemHealthScore(metrics *types.ClusterMetrics) float64 {
 	if len(metrics.Pods) == 0 {
 		return 100.0
 	}
@@ -514,7 +514,7 @@ func (ac *AdvancedCollector) calculateCorrelationRiskScore() float64 {
 }
 
 // calculateCascadeRiskScore analyzes risk of cascade failures
-func (ac *AdvancedCollector) calculateCascadeRiskScore(metrics *controller.ClusterMetrics) float64 {
+func (ac *AdvancedCollector) calculateCascadeRiskScore(metrics *types.ClusterMetrics) float64 {
 	riskFactors := []float64{}
 	
 	// High restart rate indicates instability
@@ -596,7 +596,7 @@ func (ac *AdvancedCollector) detectMemoryLeakPattern() string {
 	return "stable"
 }
 
-func (ac *AdvancedCollector) detectRestartPattern(metrics *controller.ClusterMetrics) string {
+func (ac *AdvancedCollector) detectRestartPattern(metrics *types.ClusterMetrics) string {
 	if len(metrics.Pods) == 0 {
 		return "stable"
 	}

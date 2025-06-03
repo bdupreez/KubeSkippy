@@ -18,21 +18,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // MockExecutor is a mock action executor for testing
 type MockExecutor struct {
-	ExecuteFunc  func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error)
+	ExecuteFunc  func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error)
 	ValidateFunc func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) error
-	DryRunFunc   func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error)
+	DryRunFunc   func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error)
 }
 
-func (m *MockExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (m *MockExecutor) Execute(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	if m.ExecuteFunc != nil {
 		return m.ExecuteFunc(ctx, target, action)
 	}
-	return &controller.ActionResult{Success: true, Message: "Mock execution"}, nil
+	return &kubetypes.ActionResult{Success: true, Message: "Mock execution"}, nil
 }
 
 func (m *MockExecutor) Validate(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) error {
@@ -42,11 +42,11 @@ func (m *MockExecutor) Validate(ctx context.Context, target client.Object, actio
 	return nil
 }
 
-func (m *MockExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
+func (m *MockExecutor) DryRun(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
 	if m.DryRunFunc != nil {
 		return m.DryRunFunc(ctx, target, action)
 	}
-	return &controller.ActionResult{Success: true, Message: "Mock dry-run"}, nil
+	return &kubetypes.ActionResult{Success: true, Message: "Mock dry-run"}, nil
 }
 
 func TestEngine_ExecuteAction(t *testing.T) {
@@ -109,8 +109,8 @@ func TestEngine_ExecuteAction(t *testing.T) {
 
 		// Override restart executor with mock
 		mockExecutor := &MockExecutor{
-			ExecuteFunc: func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
-				return &controller.ActionResult{
+			ExecuteFunc: func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
+				return &kubetypes.ActionResult{
 					Success: true,
 					Message: "Pod restarted successfully",
 					Changes: []v1alpha1.ResourceChange{
@@ -301,8 +301,8 @@ func TestEngine_DryRun(t *testing.T) {
 
 	// Override scale executor with mock
 	mockExecutor := &MockExecutor{
-		DryRunFunc: func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*controller.ActionResult, error) {
-			return &controller.ActionResult{
+		DryRunFunc: func(ctx context.Context, target client.Object, action *v1alpha1.HealingActionTemplate) (*kubetypes.ActionResult, error) {
+			return &kubetypes.ActionResult{
 				Success: true,
 				Message: "Dry-run: Would scale deployment from 3 to 5 replicas",
 				Changes: []v1alpha1.ResourceChange{
@@ -383,7 +383,7 @@ func TestEngine_Rollback(t *testing.T) {
 
 	// Record a fake action with original state
 	originalConfigMap := configMap.DeepCopy()
-	result := &controller.ActionResult{
+	result := &kubetypes.ActionResult{
 		Success: true,
 		Changes: []v1alpha1.ResourceChange{
 			{

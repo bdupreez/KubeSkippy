@@ -14,13 +14,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeskippy/kubeskippy/api/v1alpha1"
-	"github.com/kubeskippy/kubeskippy/internal/controller"
+	kubetypes "github.com/kubeskippy/kubeskippy/internal/types"
 )
 
 // Engine implements the RemediationEngine interface
 type Engine struct {
 	client    client.Client
-	executors map[string]controller.ActionExecutor
+	executors map[string]kubetypes.ActionExecutor
 	recorder  ActionRecorder
 	mu        sync.RWMutex
 
@@ -40,7 +40,7 @@ type ActionContext struct {
 
 // ActionRecorder records action history for audit and rollback
 type ActionRecorder interface {
-	RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *controller.ActionResult, originalState runtime.Object) error
+	RecordAction(ctx context.Context, action *v1alpha1.HealingAction, result *kubetypes.ActionResult, originalState runtime.Object) error
 	GetActionHistory(ctx context.Context, actionName string) (*ActionHistory, error)
 }
 
@@ -56,7 +56,7 @@ type ActionHistory struct {
 func NewEngine(client client.Client, recorder ActionRecorder) *Engine {
 	engine := &Engine{
 		client:        client,
-		executors:     make(map[string]controller.ActionExecutor),
+		executors:     make(map[string]kubetypes.ActionExecutor),
 		recorder:      recorder,
 		activeActions: make(map[string]*ActionContext),
 	}
@@ -71,14 +71,14 @@ func NewEngine(client client.Client, recorder ActionRecorder) *Engine {
 }
 
 // RegisterExecutor registers an action executor for a specific action type
-func (e *Engine) RegisterExecutor(actionType string, executor controller.ActionExecutor) {
+func (e *Engine) RegisterExecutor(actionType string, executor kubetypes.ActionExecutor) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.executors[actionType] = executor
 }
 
 // ExecuteAction performs the healing action
-func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingAction) (*controller.ActionResult, error) {
+func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingAction) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	log.Info("Executing healing action",
 		"action", action.Name,
@@ -100,7 +100,7 @@ func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingActi
 	// Get the executor
 	executor, err := e.GetActionExecutor(action.Spec.Action.Type)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to get executor: %v", err),
 			Error:     err,
@@ -112,7 +112,7 @@ func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingActi
 	// Get the target resource
 	target, err := e.getTargetResource(ctx, &action.Spec.TargetResource)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to get target resource: %v", err),
 			Error:     err,
@@ -126,7 +126,7 @@ func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingActi
 
 	// Validate the action
 	if err := executor.Validate(ctx, target, &action.Spec.Action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Action validation failed: %v", err),
 			Error:     err,
@@ -138,7 +138,7 @@ func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingActi
 	// Execute the action
 	result, err := executor.Execute(ctx, target, &action.Spec.Action)
 	if result == nil {
-		result = &controller.ActionResult{
+		result = &kubetypes.ActionResult{
 			StartTime: actionCtx.StartTime,
 			EndTime:   time.Now(),
 		}
@@ -174,7 +174,7 @@ func (e *Engine) ExecuteAction(ctx context.Context, action *v1alpha1.HealingActi
 }
 
 // DryRun simulates the action without executing
-func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*controller.ActionResult, error) {
+func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*kubetypes.ActionResult, error) {
 	log := log.FromContext(ctx)
 	log.Info("Performing dry-run for healing action",
 		"action", action.Name,
@@ -185,7 +185,7 @@ func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*c
 	// Get the executor
 	executor, err := e.GetActionExecutor(action.Spec.Action.Type)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to get executor: %v", err),
 			Error:     err,
@@ -197,7 +197,7 @@ func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*c
 	// Get the target resource
 	target, err := e.getTargetResource(ctx, &action.Spec.TargetResource)
 	if err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Failed to get target resource: %v", err),
 			Error:     err,
@@ -208,7 +208,7 @@ func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*c
 
 	// Validate the action
 	if err := executor.Validate(ctx, target, &action.Spec.Action); err != nil {
-		return &controller.ActionResult{
+		return &kubetypes.ActionResult{
 			Success:   false,
 			Message:   fmt.Sprintf("Action validation failed: %v", err),
 			Error:     err,
@@ -220,7 +220,7 @@ func (e *Engine) DryRun(ctx context.Context, action *v1alpha1.HealingAction) (*c
 	// Perform dry-run
 	result, err := executor.DryRun(ctx, target, &action.Spec.Action)
 	if result == nil {
-		result = &controller.ActionResult{
+		result = &kubetypes.ActionResult{
 			StartTime: startTime,
 			EndTime:   time.Now(),
 		}
@@ -309,7 +309,7 @@ func (e *Engine) Rollback(ctx context.Context, action *v1alpha1.HealingAction) e
 }
 
 // GetActionExecutor returns the executor for a specific action type
-func (e *Engine) GetActionExecutor(actionType string) (controller.ActionExecutor, error) {
+func (e *Engine) GetActionExecutor(actionType string) (kubetypes.ActionExecutor, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
