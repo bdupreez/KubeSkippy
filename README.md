@@ -1,5 +1,8 @@
 # KubeSkippy - Kubernetes Self-Healing Operator
 
+> **🤖 100% AI Generated / Vibecoded Thought Experiment**  
+> This entire project is an AI-generated experiment to test the limits of "Vibecoding" and explore what an AI tool can create autonomously. Every line of code, documentation, and architecture decision was generated through human-AI collaboration without traditional manual coding.
+
 An **AI-powered** Kubernetes operator that automatically detects, diagnoses, and heals application issues using configurable policies with **strategic AI decision-making**, including **AI Strategic Deletes**, **Resource Optimization**, and **Predictive Healing**.
 
 ## 🚀 Current Status
